@@ -1,45 +1,91 @@
 import { formatElapsed, type TimestampRecord } from "../../src/lib/timestamp";
-import { filterByVideo, toExportJson, toExportText } from "../../src/lib/records";
+import { toExportJson } from "../../src/lib/records";
+import { groupRecordsByStream, toExportText, type StreamGroup, type StreamMap } from "../../src/lib/streams";
 import type { CaptureRequest, CaptureResult, InfoRequest, InfoResult } from "../../src/lib/messages";
-import { clearRecords, deleteRecord, patchRecord, recordsItem, saveOffset, settingsItem } from "../../src/ext/storage";
+import {
+  clearRecords, deleteRecord, deleteStream, patchRecord, recordsItem, saveOffset, settingsItem, streamsItem,
+} from "../../src/ext/storage";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const list = $<HTMLUListElement>("list");
+const list = $<HTMLDivElement>("list");
 const count = $<HTMLSpanElement>("count");
 const empty = $<HTMLParagraphElement>("empty");
 const status = $<HTMLDivElement>("status");
 const captureBtn = $<HTMLButtonElement>("capture");
 const offsetInput = $<HTMLInputElement>("offset");
-const filterLabel = $<HTMLLabelElement>("filter-label");
-const filterCheck = $<HTMLInputElement>("filter");
 
-let all: TimestampRecord[] = [];
-let currentVideoId: string | null = null;
+let records: TimestampRecord[] = [];
+let streams: StreamMap = {};
+let current: { videoId: string; title: string | null; channel: string | null } | null = null;
 let activeTabId: number | undefined;
 let editingId: string | null = null;
-let pending: TimestampRecord[] | null = null;
+let dirtyWhileEditing = false;
+const openState = new Map<string, boolean>();
 
 // ---- 描画 ----------------------------------------------------------------
 
-function visibleRecords(): TimestampRecord[] {
-  const useFilter = currentVideoId != null && filterCheck.checked;
-  return useFilter ? filterByVideo(all, currentVideoId) : all;
-}
-
-function render(records: TimestampRecord[]) {
+function render() {
   if (editingId != null) {
-    pending = records;
+    dirtyWhileEditing = true;
     return;
   }
-  all = records;
-  const shown = visibleRecords();
-  list.replaceChildren(...[...shown].reverse().map(renderRow));
-  count.textContent = shown.length === all.length ? String(all.length) : `${shown.length} / ${all.length}`;
-  empty.hidden = shown.length > 0;
-  empty.textContent =
-    all.length > 0 && shown.length === 0
-      ? "この配信の記録はまだありません。"
-      : "まだ記録がありません。「● 記録」または Alt+Shift+T で記録できます。";
+  const groups = groupRecordsByStream(records, streams, current);
+  list.replaceChildren(...groups.map(renderGroup));
+  count.textContent = String(records.length);
+  empty.hidden = groups.length > 0;
+}
+
+function renderGroup(g: StreamGroup): HTMLDetailsElement {
+  const details = document.createElement("details");
+  details.open = openState.get(g.meta.videoId) ?? g.current;
+  details.addEventListener("toggle", () => openState.set(g.meta.videoId, details.open));
+  if (g.current) details.classList.add("current");
+
+  const summary = document.createElement("summary");
+  const title = document.createElement("span");
+  title.className = g.placeholder ? "title placeholder" : "title";
+  title.textContent = g.placeholder ? `${g.meta.videoId}（タイトル未取得）` : g.meta.title;
+  title.title = [g.meta.title, g.meta.channel, g.meta.videoId].filter(Boolean).join("\n");
+  summary.append(title);
+  if (g.current) {
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = "現在";
+    summary.append(badge);
+  }
+  const meta = document.createElement("small");
+  meta.textContent = g.records.length ? `${g.records.length} 件 · ${dateLabel(g.meta.lastCapturedAt)}` : "0 件";
+  summary.append(meta);
+
+  const ops = document.createElement("span");
+  ops.className = "ops";
+  ops.append(
+    button("コピー", "この配信の一覧をコピー", async (e) => {
+      e.preventDefault();
+      if (!g.records.length) return flash("記録がありません");
+      await navigator.clipboard.writeText(toExportText(g.records, streams));
+      flash(`${g.records.length} 件をコピーしました`);
+    }),
+    button("削除", "この配信の記録をすべて削除", async (e) => {
+      e.preventDefault();
+      if (!g.records.length) return;
+      if (confirm(`『${g.meta.title}』の ${g.records.length} 件を削除しますか？`)) await deleteStream(g.meta.videoId);
+    }, "danger"),
+  );
+  summary.append(ops);
+  details.append(summary);
+
+  const ul = document.createElement("ul");
+  if (g.records.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty-row";
+    li.textContent = "まだ記録がありません。「● 記録」または Alt+Shift+T で記録できます。";
+    ul.append(li);
+  } else {
+    ul.append(...[...g.records].reverse().map(renderRow));
+  }
+  details.append(ul);
+  return details;
 }
 
 function renderRow(r: TimestampRecord): HTMLLIElement {
@@ -56,7 +102,7 @@ function renderRow(r: TimestampRecord): HTMLLIElement {
   note.addEventListener("click", () => startEdit(r, note));
 
   const meta = document.createElement("small");
-  meta.textContent = currentVideoId === r.videoId && filterCheck.checked ? timeLabel(r) : `${r.videoId} · ${timeLabel(r)}`;
+  meta.textContent = new Date(r.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const del = document.createElement("button");
   del.className = "del";
@@ -68,8 +114,21 @@ function renderRow(r: TimestampRecord): HTMLLIElement {
   return li;
 }
 
-function timeLabel(r: TimestampRecord): string {
-  return new Date(r.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function button(label: string, title: string, onClick: (e: MouseEvent) => void, cls = ""): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.title = title;
+  b.className = cls;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+function dateLabel(ms: number): string {
+  const d = new Date(ms);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString([], { month: "numeric", day: "numeric" });
 }
 
 // ---- note 編集 -----------------------------------------------------------
@@ -90,9 +149,9 @@ function startEdit(r: TimestampRecord, host: HTMLSpanElement) {
     done = true;
     if (save && input.value.trim() !== (r.note ?? "")) await patchRecord(r.id, { note: input.value });
     editingId = null;
-    const next = pending ?? (await recordsItem.getValue());
-    pending = null;
-    render(next);
+    if (dirtyWhileEditing) await reload();
+    dirtyWhileEditing = false;
+    render();
   };
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") finish(true);
@@ -110,19 +169,18 @@ async function detectActiveTab() {
     if (activeTabId == null) throw new Error("no tab");
     const req: InfoRequest = { type: "info" };
     const info = (await browser.tabs.sendMessage(activeTabId, req)) as InfoResult | undefined;
-    currentVideoId = info?.videoId ?? null;
+    current = info?.videoId ? { videoId: info.videoId, title: info.title, channel: info.channel } : null;
     captureBtn.disabled = !info?.hasStreamStart;
     captureBtn.title = info?.hasStreamStart
       ? "現在の配信のタイムスタンプを記録"
-      : currentVideoId
+      : current
         ? "この動画は配信開始時刻が取得できません（ライブ配信ではない、または再読み込みが必要）"
         : "YouTube のライブ配信ページで開いてください";
   } catch {
-    currentVideoId = null;
+    current = null;
     captureBtn.disabled = true;
     captureBtn.title = "YouTube のライブ配信ページで開いてください（拡張更新後はページの再読み込みが必要）";
   }
-  filterLabel.hidden = currentVideoId == null;
 }
 
 captureBtn.addEventListener("click", async () => {
@@ -149,8 +207,6 @@ offsetInput.addEventListener("change", async () => {
   flash(`補正を ${saved} 秒に設定`);
 });
 
-filterCheck.addEventListener("change", () => render(all));
-
 function flash(message: string) {
   status.textContent = message;
   setTimeout(() => {
@@ -159,15 +215,14 @@ function flash(message: string) {
 }
 
 $("copy").addEventListener("click", async () => {
-  const target = visibleRecords();
-  if (target.length === 0) return flash("記録がありません");
-  await navigator.clipboard.writeText(toExportText(target));
-  flash(`${target.length} 件をコピーしました`);
+  if (records.length === 0) return flash("記録がありません");
+  await navigator.clipboard.writeText(toExportText(records, streams));
+  flash(`${records.length} 件をコピーしました`);
 });
 
 $("export").addEventListener("click", () => {
-  if (all.length === 0) return flash("記録がありません");
-  const blob = new Blob([toExportJson(all)], { type: "application/json" });
+  if (records.length === 0) return flash("記録がありません");
+  const blob = new Blob([toExportJson(records)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -182,9 +237,14 @@ $("clear").addEventListener("click", async () => {
 
 // ---- 起動 ----------------------------------------------------------------
 
+async function reload() {
+  [records, streams] = await Promise.all([recordsItem.getValue(), streamsItem.getValue()]);
+}
+
 (async () => {
-  const [settings] = await Promise.all([settingsItem.getValue(), detectActiveTab()]);
+  const [settings] = await Promise.all([settingsItem.getValue(), detectActiveTab(), reload()]);
   offsetInput.value = String(settings.offsetSec);
-  render(await recordsItem.getValue());
-  recordsItem.watch((records) => render(records ?? []));
+  render();
+  recordsItem.watch(async () => { await reload(); render(); });
+  streamsItem.watch(async () => { await reload(); render(); });
 })();

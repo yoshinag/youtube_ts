@@ -18,8 +18,22 @@
       body { font: 13px/1.5 system-ui, sans-serif; margin: 0; min-width: 340px; max-width: 440px; background: var(--bg); color: var(--fg); }
       header { padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--bg-raised); }
       header .actions { display: flex; gap: 4px; }
-      ul { list-style: none; margin: 0; padding: 0; max-height: 380px; overflow-y: auto; }
-      li { padding: 6px 12px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
+      #list { max-height: 420px; overflow-y: auto; }
+      details { border-bottom: 1px solid var(--line); }
+      details.current { border-left: 3px solid var(--accent); }
+      summary { list-style: none; cursor: pointer; padding: 6px 12px; display: flex; gap: 8px; align-items: center; background: var(--bg-raised); }
+      summary::-webkit-details-marker { display: none; }
+      summary::before { content: "▶"; font-size: 10px; color: var(--muted); width: 1em; }
+      details[open] > summary::before { content: "▼"; }
+      summary .title { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      summary .title.placeholder { font-weight: 400; color: var(--muted); font-family: ui-monospace, monospace; }
+      summary .badge { font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 0 4px; }
+      summary small { color: var(--muted); white-space: nowrap; }
+      summary .ops { display: flex; gap: 2px; }
+      summary .ops button { padding: 0 6px; font-size: 11px; }
+      ul { list-style: none; margin: 0; padding: 0; }
+      li { padding: 5px 12px 5px 28px; border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
+      li.empty-row { color: var(--muted); font-style: italic; }
       li a { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent); text-decoration: none; }
       li a:hover { text-decoration: underline; }
       li small { color: var(--muted); flex: 1; }
@@ -55,9 +69,8 @@
     </header>
     <div class="toolbar">
       <label>補正 <input id="offset" type="number" min="-600" max="600" step="1" value="0" /> 秒</label>
-      <label id="filter-label" hidden><input id="filter" type="checkbox" checked /> この配信のみ</label>
     </div>
-    <ul id="list"></ul>
+    <div id="list"></div>
     <p class="empty" id="empty">まだ記録がありません。YouTube のライブ配信で Alt+Shift+T を押してください。</p>
     <div id="status"></div>
     <script type="module" src="./main.ts"></script>
