@@ -2,7 +2,7 @@
 
 ## GDR-UI-002: 設定と note は popup 内でインライン編集する
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** ui, spec
 - **決定:**
   - `offsetSec` は popup ヘッダー直下の数値入力（秒、`-600..600`、step 1）で編集し、`change` 時に `local:settings` へ即保存する。options ページは作らない
@@ -25,7 +25,7 @@
 
 ## GDR-UI-003: GUI からの記録は popup の「記録」ボタンで行う
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** ui, arch
 - **決定:**
   - popup に「記録」ボタンを置く。押下時に `browser.tabs.query({ active: true, currentWindow: true })` でアクティブタブの `id` を取り、`browser.tabs.sendMessage(id, { type: "capture" })` を送る（GDR-EXT-001 のメッセージフローを流用）

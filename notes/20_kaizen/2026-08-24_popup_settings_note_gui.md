@@ -7,8 +7,8 @@
 
 | GDR ID | 決定の要約 | status |
 |---|---|---|
-| GDR-UI-002 | offsetSec の設定と note 編集は popup 内でインライン編集する（options ページは作らない） | Accepted |
-| GDR-UI-003 | GUI からの記録は popup の「記録」ボタンで行い、アクティブタブの content script に `capture` を送る。ページ内ボタン注入はしない | Accepted |
+| GDR-UI-002 | offsetSec の設定と note 編集は popup 内でインライン編集する（options ページは作らない） | Implemented |
+| GDR-UI-003 | GUI からの記録は popup の「記録」ボタンで行い、アクティブタブの content script に `capture` を送る。ページ内ボタン注入はしない | Implemented |
 
 ---
 
@@ -16,7 +16,7 @@
 
 **GDR-UI-002: 設定と note は popup 内でインライン編集する**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** ui, spec
 - **決定:**
   - `offsetSec` は popup ヘッダー直下の数値入力（秒、`-600..600`、step 1）で編集し、`change` 時に `local:settings` へ即保存する。options ページは作らない
@@ -36,7 +36,7 @@
 
 **GDR-UI-003: GUI からの記録は popup の「記録」ボタンで行う**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** ui, arch
 - **決定:**
   - popup に「記録」ボタンを置く。押下時に `browser.tabs.query({ active: true, currentWindow: true })` でアクティブタブの `id` を取り、`browser.tabs.sendMessage(id, { type: "capture" })` を送る（GDR-EXT-001 のメッセージフローを流用）
@@ -133,20 +133,20 @@ popup 内に `editingId` を持ち、`watch` コールバックは `editingId !=
 
 | # | タスク | 根拠 GDR | 依存 | ステータス |
 |---|---|---|---|---|
-| 1.1 | `records.ts` に `updateRecord` / `filterByVideo` + テスト | GDR-UI-002, UI-003 | — | 未着手 |
-| 1.2 | `messages.ts` に info、content script で応答、`storage.ts` に `patchRecord` / `saveSettings` | GDR-UI-002, UI-003 | 1.1 | 未着手 |
-| 1.3 | popup: 記録ボタン・フィルタ・offsetSec 入力・note インライン編集 | GDR-UI-002, UI-003 | 1.2 | 未着手 |
-| 1.4 | typecheck / test / build pass、README 更新 | — | 1.3 | 未着手 |
+| 1.1 | `records.ts` に `updateRecord` / `filterByVideo` + テスト | GDR-UI-002, UI-003 | — | 完了 |
+| 1.2 | `messages.ts` に info、content script で応答、`storage.ts` に `patchRecord` / `saveSettings` | GDR-UI-002, UI-003 | 1.1 | 完了 |
+| 1.3 | popup: 記録ボタン・フィルタ・offsetSec 入力・note インライン編集 | GDR-UI-002, UI-003 | 1.2 | 完了 |
+| 1.4 | typecheck / test / build pass、README 更新 | — | 1.3 | 完了 |
 | 2.1 | 実機検証（記録ボタン / 非ライブページでの無効化 / note 編集 / 補正反映） | GDR-UI-002, UI-003 | 1.4 | 未着手 |
 
 ### 6.2. フェーズ詳細
 
-#### フェーズ 1: popup 拡張
+#### フェーズ 1: popup 拡張 ✅
 
-- [ ] 1.1 純関数 — `src/lib/records.ts` / `records.test.ts`
-- [ ] 1.2 メッセージとストレージ — `src/lib/messages.ts` / `entrypoints/youtube.content.ts` / `src/ext/storage.ts`
-- [ ] 1.3 popup — `entrypoints/popup/index.html` / `main.ts`
-- [ ] 1.4 検証と README
+- [x] 1.1 純関数 — `src/lib/records.ts` / `records.test.ts`
+- [x] 1.2 メッセージとストレージ — `src/lib/messages.ts` / `entrypoints/youtube.content.ts` / `src/ext/storage.ts`
+- [x] 1.3 popup — `entrypoints/popup/index.html` / `main.ts`
+- [x] 1.4 検証と README
 
 #### フェーズ 2: 実機検証
 
@@ -156,7 +156,7 @@ popup 内に `editingId` を持ち、`watch` コールバックは `editingId !=
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
-| 1 | 4 | 0 | 4 | — |
+| 1 | 4 | 4 | 0 | 7020cef, 8dabf66, 9c291a6 |
 | 2 | 1 | 0 | 1 | — |
 
 ---
@@ -165,9 +165,12 @@ popup 内に `editingId` を持ち、`watch` コールバックは `editingId !=
 
 ### 7.1. 観察された傾向
 
-（実装後に記入）
+- **権限を増やさない制約が設計を導いた:** `tabs` 権限なしで現在の配信を知るために content script の `info` 応答を追加した。結果としてフィルタ・ボタン無効化・再読み込み案内が同じ 1 往復で得られた
+- **popup が「設定 + 一覧 + 操作」の 1 画面に集約**され、options ページを作らない判断（GDR-UI-002）が現時点では正しかった。`main.ts` は約 180 行で、これ以上増えるなら分割か UI フレームワークを再検討
 
 ### 7.2. 次回への申し送り
 
+- **フェーズ 2（実機検証）未実施**: ライブページで「● 記録」、非ライブページでの無効化とツールチップ、note 編集（Enter / Escape / blur）、補正値の保存と記録への反映、フィルタの切替
 - ページ内ボタン注入は不採用（GDR-UI-003 再検討条件）
 - ページ内トーストは未実装
+- `entrypoints/popup/main.ts` が肥大化したら分割（GDR-UI 候補）
