@@ -174,7 +174,7 @@ export function toExportText(records): string   // videoId ごとにグループ
 | 1.3 | `src/ext/storage.ts` を v2 + migration + 直列化に更新、`CaptureResult` 拡張、background バッジ | GDR-STORE-001 | 1.2 | 完了 |
 | 1.4 | popup: ダーク配色・個別削除・コピー・JSON 書き出し | GDR-STORE-001, GDR-UI-001 | 1.3 | 完了 |
 | 1.5 | `wxt build` / test / typecheck pass | GDR-STORE-001 | 1.4 | 完了 |
-| 2.1 | 実機検証（migration / 連打 / 書き出し / ダーク表示） | GDR-STORE-001, GDR-UI-001 | 1.5 | 未着手 |
+| 2.1 | 実機検証（migration / 連打 / 書き出し / ダーク表示） | GDR-STORE-001, GDR-UI-001 | 1.5 | 完了 |
 
 ### 6.2. フェーズ詳細
 
@@ -186,16 +186,16 @@ export function toExportText(records): string   // videoId ごとにグループ
 - [x] 1.4 popup — `entrypoints/popup/index.html` / `main.ts`
 - [x] 1.5 検証コマンド pass
 
-#### フェーズ 2: 実機検証
+#### フェーズ 2: 実機検証 ✅
 
-- [ ] 2.1 v1 データからの migration、連打、コピー / 書き出し、ダーク表示
+- [x] 2.1 v1 データからの migration、連打、コピー / 書き出し、ダーク表示
 
 ### 6.3. 進捗サマリー
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
 | 1 | 5 | 5 | 0 | 7363180, 1653321, 64488fc |
-| 2 | 1 | 0 | 1 | — |
+| 2 | 1 | 1 | 0 | （実機検証 2026-08-24、コード変更なし） |
 
 ---
 
@@ -209,7 +209,7 @@ export function toExportText(records): string   // videoId ごとにグループ
 
 ### 7.2. 次回への申し送り
 
-- **フェーズ 2（実機検証）未実施**: v1 データの migration（既に記録がある環境で popup を開く）、連打で `=` バッジ、テキストコピー、JSON ダウンロード、ダーク表示
+- フェーズ 2（実機検証）は 2026-08-24 に完了。結果は `notes/05_knowledge/2026-08-24_実機検証.md`
 - `note` の編集 UI は未実装（スキーマには存在）。GDR-UI 候補
 - `offsetSec` の設定 UI は未実装。GDR-UI 候補
 - JSON のインポートは未実装（再検討条件）

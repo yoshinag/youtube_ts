@@ -145,7 +145,7 @@ toExportText(records, streams): string                               // 見出�
 | 1.3 | `storage.ts` に `streamsItem`、`appendRecord` / `deleteRecord` / `deleteStream` で整合を保つ。`InfoResult` / `CaptureRequest` 拡張 | GDR-STORE-002 | 1.2 | 完了 |
 | 1.4 | popup をアコーディオン表示に置換、フィルタ削除 | GDR-UI-004 | 1.3 | 完了 |
 | 1.5 | typecheck / test / build、README | — | 1.4 | 完了 |
-| 2.1 | 実機検証（タイトル取得、旧記録の仮メタ表示、配信単位の削除 / コピー） | 両方 | 1.5 | 未着手 |
+| 2.1 | 実機検証（タイトル取得、旧記録の仮メタ表示、配信単位の削除 / コピー） | 両方 | 1.5 | 完了 |
 
 ### 6.2. フェーズ詳細
 
@@ -157,16 +157,16 @@ toExportText(records, streams): string                               // 見出�
 - [x] 1.4 popup — `entrypoints/popup/`
 - [x] 1.5 検証と README
 
-#### フェーズ 2: 実機検証
+#### フェーズ 2: 実機検証 ✅
 
-- [ ] 2.1 手動検証
+- [x] 2.1 手動検証
 
 ### 6.3. 進捗サマリー
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
 | 1 | 5 | 5 | 0 | dffdc80, 143a644, a09ef01, ecff0d2 |
-| 2 | 1 | 0 | 1 | — |
+| 2 | 1 | 1 | 0 | （実機検証 2026-08-24、コード変更なし） |
 
 ---
 
@@ -180,6 +180,6 @@ toExportText(records, streams): string                               // 見出�
 
 ### 7.2. 次回への申し送り
 
-- **フェーズ 2（実機検証）未実施**: タイトル・チャンネルの取得、旧記録（タイトル未取得）の表示と次回記録での補完、配信単位のコピー / 削除、アコーディオンの開閉
+- フェーズ 2（実機検証）は 2026-08-24 に完了。結果は `notes/05_knowledge/2026-08-24_実機検証.md`
 - 配信単位のネスト構造（v3）は見送り。配信数が増えたら再検討
 - popup 描画部の分割は実施済み（`entrypoints/popup/view.ts`、GDR 不要の実装詳細として扱った）

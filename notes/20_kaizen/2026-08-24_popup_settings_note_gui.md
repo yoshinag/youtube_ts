@@ -137,7 +137,7 @@ popup 内に `editingId` を持ち、`watch` コールバックは `editingId !=
 | 1.2 | `messages.ts` に info、content script で応答、`storage.ts` に `patchRecord` / `saveSettings` | GDR-UI-002, UI-003 | 1.1 | 完了 |
 | 1.3 | popup: 記録ボタン・フィルタ・offsetSec 入力・note インライン編集 | GDR-UI-002, UI-003 | 1.2 | 完了 |
 | 1.4 | typecheck / test / build pass、README 更新 | — | 1.3 | 完了 |
-| 2.1 | 実機検証（記録ボタン / 非ライブページでの無効化 / note 編集 / 補正反映） | GDR-UI-002, UI-003 | 1.4 | 未着手 |
+| 2.1 | 実機検証（記録ボタン / 非ライブページでの無効化 / note 編集 / 補正反映） | GDR-UI-002, UI-003 | 1.4 | 完了 |
 
 ### 6.2. フェーズ詳細
 
@@ -148,16 +148,16 @@ popup 内に `editingId` を持ち、`watch` コールバックは `editingId !=
 - [x] 1.3 popup — `entrypoints/popup/index.html` / `main.ts`
 - [x] 1.4 検証と README
 
-#### フェーズ 2: 実機検証
+#### フェーズ 2: 実機検証 ✅
 
-- [ ] 2.1 手動検証
+- [x] 2.1 手動検証
 
 ### 6.3. 進捗サマリー
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
 | 1 | 4 | 4 | 0 | 7020cef, 8dabf66, 9c291a6 |
-| 2 | 1 | 0 | 1 | — |
+| 2 | 1 | 1 | 0 | （実機検証 2026-08-24、コード変更なし） |
 
 ---
 
@@ -170,7 +170,7 @@ popup 内に `editingId` を持ち、`watch` コールバックは `editingId !=
 
 ### 7.2. 次回への申し送り
 
-- **フェーズ 2（実機検証）未実施**: ライブページで「● 記録」、非ライブページでの無効化とツールチップ、note 編集（Enter / Escape / blur）、補正値の保存と記録への反映、フィルタの切替
+- フェーズ 2（実機検証）は 2026-08-24 に完了。結果は `notes/05_knowledge/2026-08-24_実機検証.md`
 - ページ内ボタン注入は不採用（GDR-UI-003 再検討条件）
 - ページ内トーストは未実装
 - `entrypoints/popup/main.ts` が肥大化したら分割（GDR-UI 候補）

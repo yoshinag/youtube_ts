@@ -165,7 +165,7 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 | 1.3 | `entrypoints/background.ts` / `youtube.content.ts` | GDR-EXT-001, GDR-DOM-001 | 1.2 | 完了 |
 | 1.4 | `entrypoints/popup/` 全件一覧 | GDR-EXT-001 | 1.2 | 完了 |
 | 1.5 | `wxt build` 成功 + README（読み込み手順・ショートカット変更） | GDR-EXT-001 | 1.3, 1.4 | 完了 |
-| 2.1 | 実機検証（Chrome に読み込み、ライブで記録 → popup 表示）。GDR-DOM-001 の 2.1 も同時に実施 | GDR-EXT-001, GDR-DOM-001 | 1.5 | 未着手 |
+| 2.1 | 実機検証（Chrome に読み込み、ライブで記録 → popup 表示）。GDR-DOM-001 の 2.1 も同時に実施 | GDR-EXT-001, GDR-DOM-001 | 1.5 | 完了 |
 
 ### 6.2. フェーズ詳細
 
@@ -179,18 +179,18 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 - [x] 1.4 popup — `entrypoints/popup/index.html` / `main.ts`
 - [x] 1.5 ビルド確認と README
 
-#### フェーズ 2: 実機検証
+#### フェーズ 2: 実機検証 ✅
 
 **目的:** 実ブラウザで動作を確認し、GDR-DOM-001 再検討条件 2（取得できない配信形態）も潰す
 
-- [ ] 2.1 手動検証 → `notes/05_knowledge/` に記録
+- [x] 2.1 手動検証 → `notes/05_knowledge/` に記録
 
 ### 6.3. 進捗サマリー
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
 | 1 | 5 | 5 | 0 | b68ecba |
-| 2 | 1 | 0 | 1 | — |
+| 2 | 1 | 1 | 0 | （実機検証 2026-08-24、コード変更なし） |
 
 ---
 
@@ -204,7 +204,7 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 
 ### 7.2. 次回への申し送り
 
-- **フェーズ 2（実機検証）未実施**: Chrome に `dist/chrome-mv3/` を読み込み、ライブ配信で Alt+Shift+T → バッジ → popup を確認する。GDR-DOM-001 の 2.1（`startTimestamp` が取れる配信形態）も同時に確認し `notes/05_knowledge/` に記録
+- フェーズ 2（実機検証）は 2026-08-24 に完了。結果は `notes/05_knowledge/2026-08-24_実機検証.md`
 - ストレージのスキーマ（上限・重複・append 競合・エクスポート形式）は GDR-STORE-001 で確定する
 - popup のタブ別フィルタ・トースト・設定 UI（`offsetSec`）は GDR-UI 候補
 - アイコン未設定（WXT 既定）。公開前に `public/icon/` を用意

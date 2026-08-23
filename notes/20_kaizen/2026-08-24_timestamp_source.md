@@ -142,7 +142,7 @@ export function captureTimestamp(p: StreamInfoProvider, offsetSec = 0): Timestam
  | 1.2 `src/lib/timestamp/` に型・`captureTimestamp` を実装 | GDR-DOM-001 | 1.1 | 未着手 |
  | 1.3 `captureTimestamp` の単体テスト（正常 / offset / 欠損 / 不正 ISO） | GDR-DOM-001 | 1.2 | 未着手 |
  | 1.4 `parseStreamStartAt(html)` — ページ HTML/script から開始時刻を抽出する純関数 + テスト | GDR-DOM-001 | 1.1 | 未着手 |
-| 2.1 | 実機検証（ライブ / プレミア公開 / VOD 化後の時間軸）と知見記録 | GDR-DOM-001 | GDR-EXT-001 | 未着手 |
+| 2.1 | 実機検証（ライブ / プレミア公開 / VOD 化後の時間軸）と知見記録 | GDR-DOM-001 | GDR-EXT-001 | 完了 |
 
 ### 6.2. フェーズ詳細
 
@@ -155,18 +155,18 @@ export function captureTimestamp(p: StreamInfoProvider, offsetSec = 0): Timestam
 - [x] 1.3 テスト — `src/lib/timestamp/index.test.ts`
 - [x] 1.4 開始時刻抽出 — `src/lib/timestamp/youtube.ts` + テスト
 
-#### フェーズ 2: 実機検証
+#### フェーズ 2: 実機検証 ✅
 
 **目的:** 再検討条件 2（取得できない配信形態）を潰す。GDR-EXT-001（WXT 構成）の完了後に実施
 
-- [ ] 2.1 ライブ / プレミア公開 / VOD 化後での `startTimestamp` 取得と時間軸の確認 → `notes/05_knowledge/`
+- [x] 2.1 ライブ / プレミア公開 / VOD 化後での `startTimestamp` 取得と時間軸の確認 → `notes/05_knowledge/`
 
 ### 6.3. 進捗サマリー
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
 | 1 | 4 | 4 | 0 | 35830e3, 837329c |
-| 2 | 1 | 0 | 1 | — |
+| 2 | 1 | 1 | 0 | （実機検証 2026-08-24、コード変更なし） |
 
 ---
 
