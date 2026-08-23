@@ -22,6 +22,8 @@
   - 取得は MAIN world で動作するスクリプトから行い、content script（ISOLATED world）へは `window.postMessage` / CustomEvent で受け渡す
   - 1 レコードには **必ず併せて** `capturedAt`（`Date.now()`, ms）と `streamStartAt`（`ytInitialPlayerResponse.microformat.playerMicroformatRenderer.liveBroadcastDetails.startTimestamp`, ISO 8601）を記録する
   - プレイヤー API が取得できない場合の **フォールバック** は `capturedAt - streamStartAt` による算出値とし、レコードに `source: "player" | "clock"` を持たせて区別する
+  - **サニティチェック:** 実時刻推定値が得られるとき、プレイヤー値との差が許容差（初期値 10 分）を超えたらプレイヤー値を信頼せず `clock` にフォールバックする。生のプレイヤー値は `playerSec` として常に保持する
+  - 一時停止中の記録はプレイヤー値（停止位置）を採用する。「利用者が見ている位置」を記録するのが目的のため
   - `video.currentTime` 単独、および `.ytp-time-current` 等の DOM テキスト解析は採用しない
 - **理由:**
   - 利用者が欲しいのは「配信アーカイブ（VOD）で指し示せる位置」= 配信開始からの経過時間。`getCurrentTime()` は DVR 有効なライブでその値を返し、VOD 化後の時間軸ともほぼ一致する
@@ -31,7 +33,7 @@
   - **代替案 D: 複数ソースの平均 / 多数決** → 過剰設計。ソースを 2 系統に絞り `source` フィールドで区別すれば十分
 - **影響:**
   - MAIN world スクリプトの注入が必須になる → 拡張構成（GDR-EXT-001 予定）で `world: "MAIN"` の content script を前提にする
-  - レコードのデータモデル（GDR-STORE 系）は `elapsedSec` / `capturedAt` / `streamStartAt` / `source` / `videoId` を最低限含む
+  - レコードのデータモデル（GDR-STORE 系）は `elapsedSec` / `playerSec` / `capturedAt` / `streamStartAt` / `source` / `videoId` を最低限含む
   - YouTube の SPA 遷移（`yt-navigate-finish`）で `#movie_player` と `ytInitialPlayerResponse` が差し替わるため、遷移検知が必要（別 GDR-DOM で扱う）
 - **再検討条件:**
   - `getCurrentTime()` がライブで配信開始基準でない事例が実機で確認された → `getProgressState()` の `seekableStart` 補正、または実時刻方式への切替
@@ -75,7 +77,8 @@ export type TimestampSource = "player" | "clock";
 
 export interface TimestampRecord {
   videoId: string;
-  elapsedSec: number;        // 配信開始からの経過秒
+  elapsedSec: number;        // 採用した経過秒（配信開始基準）
+  playerSec: number | null;  // getCurrentTime() の生値（検証用）
   capturedAt: number;        // Date.now()
   streamStartAt: string | null; // ISO 8601。取得できなければ null
   source: TimestampSource;
@@ -85,32 +88,42 @@ export interface TimestampRecord {
 
 ### 4.3. 取得ロジックの分離
 
+`videoId` の取得も provider の責務とし、`captureTimestamp` は YouTube 非依存の純関数にする。
+
 ```ts
 export interface TimeProvider {
+  videoId(): string | null;            // URL の v= パラメータ等
   playerCurrentTime(): number | null;  // MAIN world 側で実装
   streamStartAt(): string | null;
   now(): number;
 }
 
-export function captureTimestamp(p: TimeProvider, videoId: string): TimestampRecord {
-  const start = p.streamStartAt();
+export const DEFAULT_TOLERANCE_SEC = 10 * 60;
+
+export function captureTimestamp(p: TimeProvider, toleranceSec = DEFAULT_TOLERANCE_SEC): TimestampRecord {
+  const videoId = p.videoId();
+  if (!videoId) throw new Error("videoId unavailable");
   const now = p.now();
-  const fromPlayer = p.playerCurrentTime();
-  if (fromPlayer != null && Number.isFinite(fromPlayer) && fromPlayer >= 0) {
-    return { videoId, elapsedSec: fromPlayer, capturedAt: now, streamStartAt: start, source: "player" };
-  }
-  if (start) {
-    const elapsed = (now - Date.parse(start)) / 1000;
-    return { videoId, elapsedSec: Math.max(0, elapsed), capturedAt: now, streamStartAt: start, source: "clock" };
-  }
+  const start = p.streamStartAt();
+  const startMs = start ? Date.parse(start) : NaN;
+  const clockSec = Number.isFinite(startMs) ? Math.max(0, (now - startMs) / 1000) : null;
+  const raw = p.playerCurrentTime();
+  const playerSec = raw != null && Number.isFinite(raw) && raw >= 0 ? raw : null;
+
+  const base = { videoId, playerSec, capturedAt: now, streamStartAt: start };
+  const playerTrusted = playerSec != null && (clockSec == null || Math.abs(playerSec - clockSec) <= toleranceSec);
+  if (playerTrusted) return { ...base, elapsedSec: playerSec!, source: "player" };
+  if (clockSec != null) return { ...base, elapsedSec: clockSec, source: "clock" };
   throw new Error("no timestamp source available");
 }
 ```
 
+---
+
 ### 4.4. MAIN world ⇔ ISOLATED world の受け渡し
 
 - MAIN world スクリプトが `window.addEventListener("message")` で `{type: "yt-ts:request"}` を受け、`#movie_player.getCurrentTime()` と `ytInitialPlayerResponse` の開始時刻を `{type: "yt-ts:response", ...}` で返す
-- content script はリクエスト → レスポンスを Promise 化し、タイムアウト（500ms）時は `playerCurrentTime()` を `null` と扱ってフォールバックに流す
+- content script はリクエスト → レスポンスを Promise 化し、タイムアウト（500ms）時は `playerCurrentTime()` を `null` と扱ってフォールバックに流す。postMessage の往復は通常数 ms なので 500ms は十分な余裕であり、超過は「プレイヤー未初期化」とみなしてよい
 
 ---
 
@@ -146,7 +159,7 @@ export function captureTimestamp(p: TimeProvider, videoId: string): TimestampRec
 **目的:** YouTube 非依存の純 TS として取得ロジックを実装し、テストで仕様を固定する
 
 - [ ] 1.1 型と `captureTimestamp` — `src/lib/timestamp/index.ts`
-- [ ] 1.2 テスト — `src/lib/timestamp/index.test.ts`
+- [ ] 1.2 テスト — `src/lib/timestamp/index.test.ts`（ランナーは vitest。WXT 公式も vitest 前提のため GDR 化せず採用）
 - [ ] 1.3 MAIN world provider — `src/lib/timestamp/youtube-provider.ts`（DOM 参照のみ、注入方法は GDR-EXT-001 で確定）
 
 #### フェーズ 2: 実機検証
@@ -168,7 +181,7 @@ export function captureTimestamp(p: TimeProvider, videoId: string): TimestampRec
 
 ### 7.1. 観察された傾向
 
-（実装後に記入）
+- セルフレビューで「プレイヤー値の妥当性検証（サニティチェック）」が追加された。一次ソースを信頼しすぎる初稿の偏りを補正
 
 ### 7.2. 次回への申し送り
 
