@@ -80,3 +80,32 @@ export function toExportJson(records: readonly TimestampRecord[], now: Date = ne
   const payload: ExportJson = { version: SCHEMA_VERSION, exportedAt: now.toISOString(), records: [...records] };
   return JSON.stringify(payload, null, 2);
 }
+
+/** note 等の部分更新。note が空文字 / undefined ならキーごと削除する */
+export function updateRecord(
+  records: readonly TimestampRecord[],
+  id: string,
+  patch: Partial<Pick<TimestampRecord, "note">>,
+): TimestampRecord[] {
+  return records.map((r) => {
+    if (r.id !== id) return r;
+    const next = { ...r, ...patch };
+    if (!next.note?.trim()) delete next.note;
+    else next.note = next.note.trim();
+    return next;
+  });
+}
+
+export function filterByVideo(records: readonly TimestampRecord[], videoId: string | null): TimestampRecord[] {
+  return videoId ? records.filter((r) => r.videoId === videoId) : [...records];
+}
+
+export const OFFSET_MIN_SEC = -600;
+export const OFFSET_MAX_SEC = 600;
+
+/** 入力値を補正秒として正規化（NaN → 0、範囲外は clamp、整数化） */
+export function normalizeOffset(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(OFFSET_MAX_SEC, Math.max(OFFSET_MIN_SEC, Math.round(n)));
+}

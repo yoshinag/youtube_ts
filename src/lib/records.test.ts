@@ -1,4 +1,4 @@
-import { appendRecordPure, removeRecord, toExportJson, toExportText } from "./records";
+import { appendRecordPure, filterByVideo, normalizeOffset, removeRecord, toExportJson, toExportText, updateRecord } from "./records";
 import type { TimestampRecord } from "./timestamp";
 
 const rec = (over: Partial<TimestampRecord> & { id: string }): TimestampRecord => ({
@@ -66,5 +66,39 @@ describe("toExportJson", () => {
   it("version / exportedAt / records を含む", () => {
     const json = JSON.parse(toExportJson([rec({ id: "a" })], new Date("2026-08-24T12:00:00Z")));
     expect(json).toEqual({ version: 2, exportedAt: "2026-08-24T12:00:00.000Z", records: [expect.objectContaining({ id: "a" })] });
+  });
+});
+
+describe("updateRecord", () => {
+  it("note を更新し、前後の空白を除く。他のレコードは触らない", () => {
+    const base = [rec({ id: "a" }), rec({ id: "b" })];
+    const out = updateRecord(base, "a", { note: "  ここ神 " });
+    expect(out[0]?.note).toBe("ここ神");
+    expect(out[1]).toBe(base[1]);
+  });
+
+  it("空文字なら note キーを削除する", () => {
+    const out = updateRecord([rec({ id: "a", note: "x" })], "a", { note: "  " });
+    expect(out[0]).not.toHaveProperty("note");
+  });
+});
+
+describe("filterByVideo", () => {
+  it("videoId で絞り込み、null なら全件", () => {
+    const base = [rec({ id: "a" }), rec({ id: "b", videoId: "other000001" })];
+    expect(filterByVideo(base, "other000001").map((r) => r.id)).toEqual(["b"]);
+    expect(filterByVideo(base, null)).toHaveLength(2);
+  });
+});
+
+describe("normalizeOffset", () => {
+  it.each([
+    ["5", 5],
+    [-3.6, -4],
+    ["abc", 0],
+    [999, 600],
+    [-999, -600],
+  ])("%s → %s", (input, expected) => {
+    expect(normalizeOffset(input)).toBe(expected);
   });
 });
