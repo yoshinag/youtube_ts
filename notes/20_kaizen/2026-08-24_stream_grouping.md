@@ -7,8 +7,8 @@
 
 | GDR ID | 決定の要約 | status |
 |---|---|---|
-| GDR-STORE-002 | 配信メタ（タイトル・チャンネル・開始時刻）を `local:streams` に `videoId` キーで別持ちし、記録は `videoId` で紐づける（記録にタイトルを複製しない） | Proposed |
-| GDR-UI-004 | popup は配信をアコーディオンの親、記録を子として表示する。現在の配信を先頭に展開し、「この配信のみ」フィルタは廃止 | Proposed |
+| GDR-STORE-002 | 配信メタ（タイトル・チャンネル・開始時刻）を `local:streams` に `videoId` キーで別持ちし、記録は `videoId` で紐づける（記録にタイトルを複製しない） | Accepted |
+| GDR-UI-004 | popup は配信をアコーディオンの親、記録を子として表示する。現在の配信を先頭に展開し、「この配信のみ」フィルタは廃止 | Accepted |
 
 ---
 
@@ -16,7 +16,7 @@
 
 **GDR-STORE-002: 配信メタを別キーで持ち、記録は videoId で紐づける**
 
-- **status:** Proposed
+- **status:** Accepted
 - **scope:** data, spec
 - **決定:**
   - 新キー `local:streams`: `Record<videoId, StreamMeta>`。`StreamMeta = { videoId, title, channel, streamStartAt, firstCapturedAt, lastCapturedAt }`
@@ -43,7 +43,7 @@
 
 **GDR-UI-004: popup は配信を親、記録を子として表示する**
 
-- **status:** Proposed
+- **status:** Accepted
 - **scope:** ui
 - **決定:**
   - 一覧は配信ごとのセクション（`<details>`）。ヘッダーにタイトル・件数・最終記録時刻、展開すると記録行
