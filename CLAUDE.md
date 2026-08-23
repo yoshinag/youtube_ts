@@ -32,3 +32,4 @@ YouTube ライブ配信視聴中のタイムスタンプを記録・一覧・書
 
 - TypeScript / WXT / Manifest V3 / `chrome.storage`
 - 詳細な構成判断は GDR（EXT / DOM / STORE）で順次確定する
+- タイムスタンプ取得ロジックは `src/lib/timestamp/`（純 TS、`npm test` で vitest）。一次ソースは実時刻 − 配信開始時刻（GDR-DOM-001）

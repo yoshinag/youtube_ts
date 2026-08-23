@@ -5,7 +5,7 @@
 ## GDR-DOM-001: タイムスタンプの一次ソースは実時刻 − 配信開始時刻とする
 
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** arch, spec, perf
 - **決定:**
   - 記録する経過秒は `elapsedSec = (capturedAt - streamStartAt) / 1000 + offsetSec` で算出する

@@ -7,7 +7,7 @@
 
 | GDR ID | 決定の要約 | status |
 |---|---|---|
-| GDR-DOM-001 | タイムスタンプの一次ソースは実時刻 − 配信開始時刻。プレイヤー API / MAIN world 注入は採用しない | Accepted |
+| GDR-DOM-001 | タイムスタンプの一次ソースは実時刻 − 配信開始時刻。プレイヤー API / MAIN world 注入は採用しない | Implemented |
 
 ---
 
@@ -15,7 +15,7 @@
 
 **GDR-DOM-001: タイムスタンプの一次ソースは実時刻 − 配信開始時刻とする**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** arch, spec, perf
 - **決定:**
   - 記録する経過秒は `elapsedSec = (capturedAt - streamStartAt) / 1000 + offsetSec` で算出する
@@ -138,22 +138,22 @@ export function captureTimestamp(p: StreamInfoProvider, offsetSec = 0): Timestam
 
 | # | タスク | 根拠 GDR | 依存 | ステータス |
 |---|---|---|---|---|
-| 1.1 | TS / vitest の最小セットアップ | GDR-DOM-001 | — | 未着手 |
-| 1.2 | `src/lib/timestamp/` に型・`captureTimestamp` を実装 | GDR-DOM-001 | 1.1 | 未着手 |
-| 1.3 | `captureTimestamp` の単体テスト（正常 / offset / 欠損 / 不正 ISO） | GDR-DOM-001 | 1.2 | 未着手 |
-| 1.4 | `parseStreamStartAt(html)` — ページ HTML/script から開始時刻を抽出する純関数 + テスト | GDR-DOM-001 | 1.1 | 未着手 |
+ | 1.1 TS / vitest の最小セットアップ | GDR-DOM-001 | — | 未着手 |
+ | 1.2 `src/lib/timestamp/` に型・`captureTimestamp` を実装 | GDR-DOM-001 | 1.1 | 未着手 |
+ | 1.3 `captureTimestamp` の単体テスト（正常 / offset / 欠損 / 不正 ISO） | GDR-DOM-001 | 1.2 | 未着手 |
+ | 1.4 `parseStreamStartAt(html)` — ページ HTML/script から開始時刻を抽出する純関数 + テスト | GDR-DOM-001 | 1.1 | 未着手 |
 | 2.1 | 実機検証（ライブ / プレミア公開 / VOD 化後の時間軸）と知見記録 | GDR-DOM-001 | GDR-EXT-001 | 未着手 |
 
 ### 6.2. フェーズ詳細
 
-#### フェーズ 1: 取得ロジック
+#### フェーズ 1: 取得ロジック ✅
 
 **目的:** YouTube 非依存の純 TS として取得ロジックを実装し、テストで仕様を固定する
 
-- [ ] 1.1 セットアップ — `package.json` / `tsconfig.json` / vitest
-- [ ] 1.2 型と `captureTimestamp` — `src/lib/timestamp/index.ts`
-- [ ] 1.3 テスト — `src/lib/timestamp/index.test.ts`
-- [ ] 1.4 開始時刻抽出 — `src/lib/timestamp/youtube.ts` + テスト
+- [x] 1.1 セットアップ — `package.json` / `tsconfig.json` / vitest
+- [x] 1.2 型と `captureTimestamp` — `src/lib/timestamp/index.ts`
+- [x] 1.3 テスト — `src/lib/timestamp/index.test.ts`
+- [x] 1.4 開始時刻抽出 — `src/lib/timestamp/youtube.ts` + テスト
 
 #### フェーズ 2: 実機検証
 
@@ -165,7 +165,7 @@ export function captureTimestamp(p: StreamInfoProvider, offsetSec = 0): Timestam
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
-| 1 | 4 | 0 | 4 | — |
+| 1 | 4 | 4 | 0 | 35830e3, 837329c |
 | 2 | 1 | 0 | 1 | — |
 
 ---
@@ -175,6 +175,7 @@ export function captureTimestamp(p: StreamInfoProvider, offsetSec = 0): Timestam
 ### 7.1. 観察された傾向
 
 - **過剰設計の圧縮:** 初稿はプレイヤー API 一次 + 実時刻併記録 + サニティチェックのハイブリッドだったが、合意フェーズで「実時刻のみ」に圧縮された。MAIN world 注入という構成上のコストが判断を動かした
+- **実装からの発見:** `ytInitialPlayerResponse` の切り出しを正規表現で終端推測すると脆いため、引用符を考慮した波括弧マッチ（`extractAssignedObject`）に置き換えた。`window.` 前置形式を識別子境界の正規表現が弾くバグをテストで検出
 
 ### 7.2. 次回への申し送り
 
