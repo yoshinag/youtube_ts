@@ -20,14 +20,15 @@ export default defineContentScript({
 
 function info(): InfoResult {
   const p = createDocumentProvider();
-  return { type: "info:result", videoId: p.videoId(), hasStreamStart: p.streamStartAt() != null };
+  return { type: "info:result", videoId: p.videoId(), title: p.title(), channel: p.channel(), hasStreamStart: p.streamStartAt() != null };
 }
 
 async function capture(): Promise<CaptureResult> {
   try {
     const { offsetSec } = await settingsItem.getValue();
-    const record = captureTimestamp(createDocumentProvider(), offsetSec);
-    const { records, duplicate, pruned } = await appendRecord(record);
+    const p = createDocumentProvider();
+    const record = captureTimestamp(p, offsetSec);
+    const { records, duplicate, pruned } = await appendRecord(record, { title: p.title(), channel: p.channel() });
     const count = records.length;
     if (duplicate) console.info(`[yt-ts] ${formatElapsed(record.elapsedSec)} は直前の記録と重複のため無視`);
     else console.info(`[yt-ts] ${formatElapsed(record.elapsedSec)} を記録（${count} 件目${pruned ? `、古い ${pruned} 件を削除` : ""}）`);

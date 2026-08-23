@@ -22,6 +22,8 @@ export type InfoRequest = { type: "info" };
 export type InfoResult = {
   type: "info:result";
   videoId: string | null;
+  title: string | null;
+  channel: string | null;
   /** 配信開始時刻が取得でき、記録可能なページか */
   hasStreamStart: boolean;
 };
