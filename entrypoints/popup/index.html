@@ -4,23 +4,46 @@
     <meta charset="UTF-8" />
     <title>YouTube Live Timestamp</title>
     <style>
-      body { font: 13px/1.5 system-ui, sans-serif; margin: 0; min-width: 320px; max-width: 420px; }
-      header { padding: 8px 12px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
-      ul { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; }
-      li { padding: 6px 12px; border-bottom: 1px solid #eee; display: flex; gap: 8px; align-items: baseline; }
-      li a { font-variant-numeric: tabular-nums; font-weight: 600; }
-      li small { color: #666; }
-      .empty { padding: 16px 12px; color: #666; }
-      button { font: inherit; }
+      /* GDR-UI-001: ダークテーマのみ。配色トークンはここに集約 */
+      :root {
+        color-scheme: dark;
+        --bg: #111;
+        --bg-raised: #1b1b1b;
+        --fg: #eee;
+        --muted: #9a9a9a;
+        --line: #2a2a2a;
+        --accent: #8ab4f8;
+        --danger: #f28b82;
+      }
+      body { font: 13px/1.5 system-ui, sans-serif; margin: 0; min-width: 340px; max-width: 440px; background: var(--bg); color: var(--fg); }
+      header { padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--bg-raised); }
+      header .actions { display: flex; gap: 4px; }
+      ul { list-style: none; margin: 0; padding: 0; max-height: 380px; overflow-y: auto; }
+      li { padding: 6px 12px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
+      li a { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent); text-decoration: none; }
+      li a:hover { text-decoration: underline; }
+      li small { color: var(--muted); flex: 1; }
+      li .del { color: var(--muted); background: none; border: 0; cursor: pointer; padding: 0 4px; }
+      li .del:hover { color: var(--danger); }
+      .empty { padding: 16px 12px; color: var(--muted); }
+      button { font: inherit; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+      button:hover { border-color: var(--muted); }
+      button.danger:hover { color: var(--danger); border-color: var(--danger); }
+      #status { color: var(--muted); font-size: 12px; padding: 4px 12px; min-height: 1.5em; }
     </style>
   </head>
   <body>
     <header>
-      <strong>記録一覧</strong>
-      <span><span id="count">0</span> 件 <button id="clear">全削除</button></span>
+      <strong><span id="count">0</span> 件</strong>
+      <span class="actions">
+        <button id="copy" title="動画ごとに h:mm:ss の一覧をコピー">テキストをコピー</button>
+        <button id="export" title="全件を JSON で保存">JSON</button>
+        <button id="clear" class="danger">全削除</button>
+      </span>
     </header>
     <ul id="list"></ul>
     <p class="empty" id="empty">まだ記録がありません。YouTube のライブ配信で Alt+Shift+T を押してください。</p>
+    <div id="status"></div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
