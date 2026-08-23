@@ -8,7 +8,7 @@ export default defineBackground(() => {
       const req: CaptureRequest = { type: "capture" };
       const res = (await browser.tabs.sendMessage(tabId, req)) as CaptureResult | undefined;
       if (res?.ok) {
-        await browser.action.setBadgeText({ tabId, text: String(res.count) });
+        await browser.action.setBadgeText({ tabId, text: res.duplicate ? "=" : String(res.count) });
       } else {
         await browser.action.setBadgeText({ tabId, text: "!" });
       }

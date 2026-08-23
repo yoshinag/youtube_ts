@@ -18,9 +18,11 @@ async function capture(): Promise<CaptureResult> {
   try {
     const { offsetSec } = await settingsItem.getValue();
     const record = captureTimestamp(createDocumentProvider(), offsetSec);
-    const count = await appendRecord(record);
-    console.info(`[yt-ts] ${formatElapsed(record.elapsedSec)} を記録（${count} 件目）`);
-    return { type: "capture:result", ok: true, record, count };
+    const { records, duplicate, pruned } = await appendRecord(record);
+    const count = records.length;
+    if (duplicate) console.info(`[yt-ts] ${formatElapsed(record.elapsedSec)} は直前の記録と重複のため無視`);
+    else console.info(`[yt-ts] ${formatElapsed(record.elapsedSec)} を記録（${count} 件目${pruned ? `、古い ${pruned} 件を削除` : ""}）`);
+    return { type: "capture:result", ok: true, record, count, duplicate, pruned };
   } catch (e) {
     const error = e instanceof TimestampError ? e.reason : "unknown";
     console.warn("[yt-ts] 記録に失敗:", e);
