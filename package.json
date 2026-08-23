@@ -5,11 +5,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "wxt prepare"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "vitest": "^3.2.7"
+    "typescript": "7.0.2",
+    "vitest": "3.2.7",
+    "wxt": "0.21.4"
   }
 }
