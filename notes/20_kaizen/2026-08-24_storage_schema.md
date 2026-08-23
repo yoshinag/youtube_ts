@@ -7,8 +7,8 @@
 
 | GDR ID | 決定の要約 | status |
 |---|---|---|
-| GDR-STORE-001 | `local:records` を version 付き単一配列で持ち、`id` 付与・連打重複排除・上限 5000 件・書き込み直列化・JSON / テキストの 2 形式で書き出す | Proposed |
-| GDR-UI-001 | popup はダークテーマを既定とする | Proposed |
+| GDR-STORE-001 | `local:records` を version 付き単一配列で持ち、`id` 付与・連打重複排除・上限 5000 件・書き込み直列化・JSON / テキストの 2 形式で書き出す | Accepted |
+| GDR-UI-001 | popup はダークテーマを既定とする | Accepted |
 
 ---
 
@@ -16,7 +16,7 @@
 
 **GDR-STORE-001: 記録の永続化スキーマ**
 
-- **status:** Proposed
+- **status:** Accepted
 - **scope:** data, spec
 - **決定:**
   - キーは `local:records`（`TimestampRecord[]`）と `local:settings`（`Settings`）の 2 つ。WXT `defineItem` の `version` / `migrations` でスキーマ変更を追跡する（現行 v2）
@@ -50,7 +50,7 @@
 
 **GDR-UI-001: popup はダークテーマを既定とする**
 
-- **status:** Proposed
+- **status:** Accepted
 - **scope:** ui
 - **決定:** popup は**ダークテーマのみ**を実装し、`color-scheme: dark` を宣言する。OS のライト設定には追従しない
 - **理由:** YouTube のライブ視聴は暗いテーマで行われることが多く、popup が白く光ると視聴を妨げる（ユーザー指示 2026-08-24）。**代替案: `prefers-color-scheme` に追従** → 2 パレット分の保守が要り、現状の画面規模では見合わない。却下

@@ -1,2 +1,3 @@
 
-| GDR-EXT-001 | WXT 3 エントリ構成・最小権限（`storage` のみ） | arch, pol | Implemented | [gdr/02_GDR-EXT.md](gdr/02_GDR-EXT.md) |
+| GDR-STORE-001 | 記録の永続化スキーマ（v2: id / 重複排除 / 上限 5000 / JSON・テキスト書き出し） | data, spec | Accepted | [gdr/03_GDR-STORE.md](gdr/03_GDR-STORE.md) |
+| GDR-UI-001 | popup はダークテーマを既定とする | ui | Accepted | [gdr/04_GDR-UI.md](gdr/04_GDR-UI.md) |
