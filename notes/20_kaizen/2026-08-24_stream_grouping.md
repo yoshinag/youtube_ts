@@ -21,7 +21,8 @@
 - **決定:**
   - 新キー `local:streams`: `Record<videoId, StreamMeta>`。`StreamMeta = { videoId, title, channel, streamStartAt, firstCapturedAt, lastCapturedAt }`
   - タイトル・チャンネル名は記録時に `ytInitialPlayerResponse.videoDetails.title` / `.author` から取得し、`document.title`（末尾の ` - YouTube` を除去）をフォールバックにする
-  - 記録のたびに `streams[videoId]` を **upsert**（タイトルは最新値で上書き、`firstCapturedAt` は保持）
+  - 記録のたびに `streams[videoId]` を **upsert**（`firstCapturedAt` は保持、`lastCapturedAt` は更新。タイトルは取得できたときのみ上書き）
+  - `videoDetails` は `videoDetails.videoId` が URL の `videoId` と一致するときだけ信頼する（SPA 遷移後の古い値で前の動画のタイトルを拾わないため）。不一致・欠損時は `document.title` を使う
   - `TimestampRecord` のスキーマは **変更しない**（v2 のまま）。タイトルは記録に複製しない
   - 記録が 1 件もなくなった配信のメタは削除する（孤児を残さない）
   - 旧データ（`streams` に存在しない `videoId` の記録）は、popup 表示時に `title = videoId` の仮メタとして扱い、次にその配信で記録した時点で本物に置き換わる
@@ -103,7 +104,7 @@ toExportText(records, streams): string                               // 見出�
 
 ### 4.3. 取得
 
-`youtube.ts` に `parseVideoDetails(scriptText): { title, author } | null` を追加（`extractAssignedObject` を再利用）。`createDocumentProvider` に `title()` / `channel()` を追加し、`document.title` フォールバックを持つ。
+`youtube.ts` に `parseVideoDetails(scriptText): { videoId, title, author } | null` を追加（`extractAssignedObject` を再利用）。`createDocumentProvider` に `title()` / `channel()` を追加。`videoDetails.videoId` が現在の `videoId` と一致するときだけ採用し、それ以外は `document.title`（` - YouTube` 除去）を返す。
 
 ### 4.4. popup
 
@@ -116,6 +117,9 @@ toExportText(records, streams): string                               // 見出�
 ▶ △△ 雑談枠                     3 件 · 昨日   [コピー][削除]
 ▶ dQw4w9WgXcQ（タイトル未取得）   4 件 · 8/20  [コピー][削除]
 ```
+
+- 現在の配信に記録が 0 件でも、`info` のタイトルで空セクションを先頭に出す（記録直後に同じ場所へ行が増える）
+- 配信単位の削除はタイトルを含めて確認する（「『○○』の 5 件を削除しますか？」）
 
 ---
 
@@ -137,7 +141,7 @@ toExportText(records, streams): string                               // 見出�
 | # | タスク | 根拠 GDR | 依存 | ステータス |
 |---|---|---|---|---|
 | 1.1 | `parseVideoDetails` + provider の `title()` / `channel()` + テスト | GDR-STORE-002 | — | 未着手 |
-| 1.2 | `src/lib/streams.ts`（upsert / orphan / group / export）+ テスト、`records.ts` の旧 `toExportText` / `filterByVideo` を整理 | GDR-STORE-002 | 1.1 | 未着手 |
+| 1.2 | `src/lib/streams.ts`（upsert / orphan / group / export）+ テスト。`records.ts` の旧 `toExportText` / `groupByVideo` / `filterByVideo` は削除して一本化 | GDR-STORE-002 | 1.1 | 未着手 |
 | 1.3 | `storage.ts` に `streamsItem`、`appendRecord` / `deleteRecord` / `deleteStream` で整合を保つ。`InfoResult` / `CaptureRequest` 拡張 | GDR-STORE-002 | 1.2 | 未着手 |
 | 1.4 | popup をアコーディオン表示に置換、フィルタ削除 | GDR-UI-004 | 1.3 | 未着手 |
 | 1.5 | typecheck / test / build、README | — | 1.4 | 未着手 |
