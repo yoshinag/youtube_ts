@@ -7,7 +7,7 @@
 
 | GDR ID | 決定の要約 | status |
 |---|---|---|
-| GDR-EXT-001 | WXT で content script + background + popup の 3 エントリ構成。権限は `storage` のみ、host は `www.youtube.com` の content script match で完結 | Accepted |
+| GDR-EXT-001 | WXT で content script + background + popup の 3 エントリ構成。権限は `storage` のみ、host は `www.youtube.com` の content script match で完結 | Implemented |
 
 ---
 
@@ -15,7 +15,7 @@
 
 **GDR-EXT-001: WXT 3 エントリ構成・最小権限**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** arch, pol
 - **決定:**
   - フレームワークは **WXT**（0.21 系）、Manifest V3、ターゲットは Chrome のみ
@@ -160,24 +160,24 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 
 | # | タスク | 根拠 GDR | 依存 | ステータス |
 |---|---|---|---|---|
-| 1.1 | WXT 導入と `wxt.config.ts`、npm scripts、tsconfig 連携 | GDR-EXT-001 | — | 未着手 |
-| 1.2 | `src/lib/messages.ts` / `src/lib/storage.ts` | GDR-EXT-001 | 1.1 | 未着手 |
-| 1.3 | `entrypoints/background.ts` / `youtube.content.ts` | GDR-EXT-001, GDR-DOM-001 | 1.2 | 未着手 |
-| 1.4 | `entrypoints/popup/` 全件一覧 | GDR-EXT-001 | 1.2 | 未着手 |
-| 1.5 | `wxt build` 成功 + README（読み込み手順・ショートカット変更） | GDR-EXT-001 | 1.3, 1.4 | 未着手 |
+| 1.1 | WXT 導入と `wxt.config.ts`、npm scripts、tsconfig 連携 | GDR-EXT-001 | — | 完了 |
+| 1.2 | `src/lib/messages.ts` / `src/lib/storage.ts` | GDR-EXT-001 | 1.1 | 完了 |
+| 1.3 | `entrypoints/background.ts` / `youtube.content.ts` | GDR-EXT-001, GDR-DOM-001 | 1.2 | 完了 |
+| 1.4 | `entrypoints/popup/` 全件一覧 | GDR-EXT-001 | 1.2 | 完了 |
+| 1.5 | `wxt build` 成功 + README（読み込み手順・ショートカット変更） | GDR-EXT-001 | 1.3, 1.4 | 完了 |
 | 2.1 | 実機検証（Chrome に読み込み、ライブで記録 → popup 表示）。GDR-DOM-001 の 2.1 も同時に実施 | GDR-EXT-001, GDR-DOM-001 | 1.5 | 未着手 |
 
 ### 6.2. フェーズ詳細
 
-#### フェーズ 1: 器を作る
+#### フェーズ 1: 器を作る ✅
 
 **目的:** `wxt build` が通り、ショートカット → 記録 → popup 表示が一通りつながる
 
-- [ ] 1.1 WXT 導入 — `package.json` / `wxt.config.ts` / `tsconfig.json`（`.wxt/tsconfig.json` を extends し、`vitest/globals` は `compilerOptions.types` で追加。`wxt prepare` を `postinstall` に登録）
-- [ ] 1.2 共通モジュール — `src/lib/messages.ts` / `src/ext/storage.ts`
-- [ ] 1.3 エントリ — `entrypoints/background.ts` / `entrypoints/youtube.content.ts`
-- [ ] 1.4 popup — `entrypoints/popup/index.html` / `main.ts`
-- [ ] 1.5 ビルド確認と README
+- [x] 1.1 WXT 導入 — `package.json` / `wxt.config.ts` / `tsconfig.json`（`.wxt/tsconfig.json` を extends し、`vitest/globals` は `compilerOptions.types` で追加。`wxt prepare` を `postinstall` に登録）
+- [x] 1.2 共通モジュール — `src/lib/messages.ts` / `src/ext/storage.ts`
+- [x] 1.3 エントリ — `entrypoints/background.ts` / `entrypoints/youtube.content.ts`
+- [x] 1.4 popup — `entrypoints/popup/index.html` / `main.ts`
+- [x] 1.5 ビルド確認と README
 
 #### フェーズ 2: 実機検証
 
@@ -189,7 +189,7 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
-| 1 | 5 | 0 | 5 | — |
+| 1 | 5 | 5 | 0 | b68ecba |
 | 2 | 1 | 0 | 1 | — |
 
 ---
@@ -198,9 +198,13 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 
 ### 7.1. 観察された傾向
 
-（実装後に記入）
+- **実装からの発見:** `createDocumentProvider` は `src/lib/timestamp/youtube.ts` にあり `index.ts` から再エクスポートしていなかった。lib の公開面を `index.ts` に集約するか、用途別に分けるかは未決のまま（小さいので現状維持）
+- **過剰設計の回避:** popup のタブ別フィルタには `tabs` 権限が要るため、権限最小を優先して全件表示に留めた
+- `wxt build` 生成の manifest で `permissions: ["storage"]` のみ、`host_permissions` なしを確認
 
 ### 7.2. 次回への申し送り
 
+- **フェーズ 2（実機検証）未実施**: Chrome に `dist/chrome-mv3/` を読み込み、ライブ配信で Alt+Shift+T → バッジ → popup を確認する。GDR-DOM-001 の 2.1（`startTimestamp` が取れる配信形態）も同時に確認し `notes/05_knowledge/` に記録
 - ストレージのスキーマ（上限・重複・append 競合・エクスポート形式）は GDR-STORE-001 で確定する
-- popup のタブ別フィルタ・トースト・設定 UI は GDR-UI 候補
+- popup のタブ別フィルタ・トースト・設定 UI（`offsetSec`）は GDR-UI 候補
+- アイコン未設定（WXT 既定）。公開前に `public/icon/` を用意

@@ -4,7 +4,7 @@
 
 ## GDR-EXT-001: WXT 3 エントリ構成・最小権限
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** arch, pol
 - **決定:**
   - フレームワークは **WXT**（0.21 系）、Manifest V3、ターゲットは Chrome のみ

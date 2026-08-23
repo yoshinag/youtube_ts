@@ -28,8 +28,11 @@ YouTube ライブ配信視聴中のタイムスタンプを記録・一覧・書
 | `一気通貫：[指示]` | 現在地を判定し 起票 → レビュー → 合意 → GDR → 実装 → 完了処理 をノンストップで前進 | `/gdr-flow` |
 | `アーカイブ：[パス]` | `notes/_archive/{元パス}` に `git mv` で退避（引数必須） | `/gdr-archive` |
 
-## 技術方針（初期）
+## 技術構成
 
-- TypeScript / WXT / Manifest V3 / `chrome.storage`
-- 詳細な構成判断は GDR（EXT / DOM / STORE）で順次確定する
+- TypeScript / WXT 0.21 / Manifest V3 / Chrome のみ（GDR-EXT-001）
+- `entrypoints/`: `youtube.content.ts`（記録）/ `background.ts`（ショートカット受信・バッジ）/ `popup/`（一覧、素の TS）
+- `src/lib/`: WXT 非依存の純 TS（vitest 対象）。`src/ext/`: WXT storage 等の拡張 API ラッパ
+- 権限は `storage` のみ。`tabs` / `activeTab` / `scripting` / `host_permissions` は追加しない（追加するなら GDR）
+- `npm run build` → `dist/chrome-mv3/` / `npm test` / `npm run typecheck`
 - タイムスタンプ取得ロジックは `src/lib/timestamp/`（純 TS、`npm test` で vitest）。一次ソースは実時刻 − 配信開始時刻（GDR-DOM-001）
