@@ -1,4 +1,4 @@
-import { parseStreamStartAt, parseVideoId } from "./youtube";
+import { parseStreamStartAt, parseVideoDetails, parseVideoId, titleFromDocument } from "./youtube";
 
 const START = "2026-08-24T01:00:00+00:00";
 const playerResponse = (extra = "") =>
@@ -63,5 +63,29 @@ describe("parseStreamStartAt（堅牢性）", () => {
   it("文字列内のエスケープされた引用符 \\\" を越えて正しく閉じる", () => {
     const script = `var ytInitialPlayerResponse = ${playerResponse('say \\"}\\" ok')};`;
     expect(parseStreamStartAt(script)).toBe(START);
+  });
+});
+
+describe("parseVideoDetails", () => {
+  it("videoId / title / author を取り出す", () => {
+    const script = `var ytInitialPlayerResponse = ${JSON.stringify({ videoDetails: { videoId: "dQw4w9WgXcQ", title: "24時間耐久", author: "ch" } })};`;
+    expect(parseVideoDetails(script)).toEqual({ videoId: "dQw4w9WgXcQ", title: "24時間耐久", author: "ch" });
+  });
+
+  it("title が無ければ null、author が無ければ null を返す", () => {
+    expect(parseVideoDetails(`var ytInitialPlayerResponse = ${JSON.stringify({ videoDetails: { videoId: "x" } })};`)).toBeNull();
+    const noAuthor = `var ytInitialPlayerResponse = ${JSON.stringify({ videoDetails: { videoId: "x", title: "t" } })};`;
+    expect(parseVideoDetails(noAuthor)?.author).toBeNull();
+  });
+});
+
+describe("titleFromDocument", () => {
+  it.each([
+    ["24時間耐久 - YouTube", "24時間耐久"],
+    ["A - B - YouTube", "A - B"],
+    ["  - YouTube", null],
+    ["", null],
+  ])("%s → %s", (input, expected) => {
+    expect(titleFromDocument(input)).toBe(expected);
   });
 });

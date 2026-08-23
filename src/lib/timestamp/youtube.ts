@@ -42,6 +42,32 @@ export function extractAssignedObject(text: string, name: string): string | null
   return null;
 }
 
+export interface VideoDetails {
+  videoId: string;
+  title: string;
+  author: string | null;
+}
+
+/** `ytInitialPlayerResponse.videoDetails` からタイトル等を取り出す */
+export function parseVideoDetails(scriptText: string): VideoDetails | null {
+  const objectText = extractAssignedObject(scriptText, "ytInitialPlayerResponse");
+  if (!objectText) return null;
+  try {
+    const json = JSON.parse(objectText) as { videoDetails?: { videoId?: unknown; title?: unknown; author?: unknown } };
+    const d = json.videoDetails;
+    if (!d || typeof d.videoId !== "string" || typeof d.title !== "string" || !d.title) return null;
+    return { videoId: d.videoId, title: d.title, author: typeof d.author === "string" && d.author ? d.author : null };
+  } catch {
+    return null;
+  }
+}
+
+/** `document.title` から末尾の " - YouTube" を除いたタイトル。空なら null */
+export function titleFromDocument(docTitle: string): string | null {
+  const t = docTitle.replace(/\s*-\s*YouTube\s*$/u, "").trim();
+  return t || null;
+}
+
 /** watch URL から videoId を取り出す（`/watch?v=`, `/live/`, `youtu.be/` に対応） */
 export function parseVideoId(url: string): string | null {
   let u: URL;
@@ -67,16 +93,27 @@ function isVideoId(s: string): boolean {
 
 /** 実際のページから情報を集める StreamInfoProvider 実装。content script から使う */
 export function createDocumentProvider(doc: Document = document, loc: Location = location) {
+  const playerScript = () =>
+    Array.from(doc.scripts)
+      .map((s) => s.textContent ?? "")
+      .find((t) => t.includes("ytInitialPlayerResponse")) ?? null;
+  const videoId = () => parseVideoId(loc.href);
+  /** videoDetails は URL の videoId と一致するときだけ信頼する（SPA 遷移後の古い値を避ける） */
+  const trustedDetails = () => {
+    const script = playerScript();
+    const d = script ? parseVideoDetails(script) : null;
+    return d && d.videoId === videoId() ? d : null;
+  };
   return {
-    videoId: () => parseVideoId(loc.href),
+    videoId,
     streamStartAt: () => {
-      for (const s of Array.from(doc.scripts)) {
-        if (!s.textContent?.includes("ytInitialPlayerResponse")) continue;
-        const ts = parseStreamStartAt(s.textContent);
-        if (ts) return ts;
-      }
-      return null;
+      const script = playerScript();
+      return script ? parseStreamStartAt(script) : null;
     },
+    title: () => trustedDetails()?.title ?? titleFromDocument(doc.title),
+    channel: () => trustedDetails()?.author ?? null,
     now: () => Date.now(),
   };
 }
+
+export type DocumentProvider = ReturnType<typeof createDocumentProvider>;
