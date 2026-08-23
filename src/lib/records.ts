@@ -1,5 +1,5 @@
 /** レコード集合に対する純関数（GDR-STORE-001）。WXT 非依存 */
-import { formatElapsed, type TimestampRecord } from "./timestamp";
+import type { TimestampRecord } from "./timestamp";
 
 export const SCHEMA_VERSION = 2;
 export const DEDUP_WINDOW_MS = 1500;
@@ -48,28 +48,6 @@ export function removeRecord(records: readonly TimestampRecord[], id: string): T
   return records.filter((r) => r.id !== id);
 }
 
-/** videoId ごとにグループ化。グループ順は最初の記録の capturedAt 順、行は elapsedSec 昇順 */
-export function groupByVideo(records: readonly TimestampRecord[]): Map<string, TimestampRecord[]> {
-  const groups = new Map<string, TimestampRecord[]>();
-  for (const r of [...records].sort((a, b) => a.capturedAt - b.capturedAt)) {
-    const g = groups.get(r.videoId);
-    if (g) g.push(r);
-    else groups.set(r.videoId, [r]);
-  }
-  for (const g of groups.values()) g.sort((a, b) => a.elapsedSec - b.elapsedSec);
-  return groups;
-}
-
-/** YouTube コメント / 概要欄にそのまま貼れるテキスト */
-export function toExportText(records: readonly TimestampRecord[]): string {
-  const blocks: string[] = [];
-  for (const [videoId, rs] of groupByVideo(records)) {
-    const lines = rs.map((r) => (r.note ? `${formatElapsed(r.elapsedSec)} ${r.note}` : formatElapsed(r.elapsedSec)));
-    blocks.push([`# ${videoId}`, ...lines].join("\n"));
-  }
-  return blocks.join("\n\n");
-}
-
 export interface ExportJson {
   version: number;
   exportedAt: string;
@@ -94,10 +72,6 @@ export function updateRecord(
     else next.note = next.note.trim();
     return next;
   });
-}
-
-export function filterByVideo(records: readonly TimestampRecord[], videoId: string | null): TimestampRecord[] {
-  return videoId ? records.filter((r) => r.videoId === videoId) : [...records];
 }
 
 export const OFFSET_MIN_SEC = -600;

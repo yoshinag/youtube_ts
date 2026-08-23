@@ -1,4 +1,4 @@
-import { appendRecordPure, filterByVideo, normalizeOffset, removeRecord, toExportJson, toExportText, updateRecord } from "./records";
+import { appendRecordPure, normalizeOffset, removeRecord, toExportJson, updateRecord } from "./records";
 import type { TimestampRecord } from "./timestamp";
 
 const rec = (over: Partial<TimestampRecord> & { id: string }): TimestampRecord => ({
@@ -47,21 +47,6 @@ describe("removeRecord", () => {
   });
 });
 
-describe("toExportText", () => {
-  it("動画ごとに # 見出し、行は経過秒昇順、note があれば付ける", () => {
-    const records = [
-      rec({ id: "1", videoId: "vid00000002", elapsedSec: 3905, capturedAt: 5_000, note: "ここ神" }),
-      rec({ id: "2", videoId: "vid00000001", elapsedSec: 754, capturedAt: 1_000 }),
-      rec({ id: "3", videoId: "vid00000002", elapsedSec: 12, capturedAt: 9_000 }),
-    ];
-    expect(toExportText(records)).toBe(["# vid00000001", "12:34", "", "# vid00000002", "0:12", "1:05:05 ここ神"].join("\n"));
-  });
-
-  it("空なら空文字", () => {
-    expect(toExportText([])).toBe("");
-  });
-});
-
 describe("toExportJson", () => {
   it("version / exportedAt / records を含む", () => {
     const json = JSON.parse(toExportJson([rec({ id: "a" })], new Date("2026-08-24T12:00:00Z")));
@@ -80,14 +65,6 @@ describe("updateRecord", () => {
   it("空文字なら note キーを削除する", () => {
     const out = updateRecord([rec({ id: "a", note: "x" })], "a", { note: "  " });
     expect(out[0]).not.toHaveProperty("note");
-  });
-});
-
-describe("filterByVideo", () => {
-  it("videoId で絞り込み、null なら全件", () => {
-    const base = [rec({ id: "a" }), rec({ id: "b", videoId: "other000001" })];
-    expect(filterByVideo(base, "other000001").map((r) => r.id)).toEqual(["b"]);
-    expect(filterByVideo(base, null)).toHaveLength(2);
   });
 });
 
