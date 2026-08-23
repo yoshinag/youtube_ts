@@ -17,8 +17,25 @@ export type CaptureResult =
     }
   | { type: "capture:result"; ok: false; error: TimestampErrorReason | "unknown" };
 
-export type Message = CaptureRequest | CaptureResult;
+export type InfoRequest = { type: "info" };
+
+export type InfoResult = {
+  type: "info:result";
+  videoId: string | null;
+  /** 配信開始時刻が取得でき、記録可能なページか */
+  hasStreamStart: boolean;
+};
+
+export type Message = CaptureRequest | CaptureResult | InfoRequest | InfoResult;
+
+function hasType(m: unknown, type: string): boolean {
+  return typeof m === "object" && m !== null && (m as { type?: unknown }).type === type;
+}
 
 export function isCaptureRequest(m: unknown): m is CaptureRequest {
-  return typeof m === "object" && m !== null && (m as { type?: unknown }).type === "capture";
+  return hasType(m, "capture");
+}
+
+export function isInfoRequest(m: unknown): m is InfoRequest {
+  return hasType(m, "info");
 }

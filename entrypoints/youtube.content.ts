@@ -1,18 +1,27 @@
 import { captureTimestamp, formatElapsed, TimestampError } from "../src/lib/timestamp";
 import { createDocumentProvider } from "../src/lib/timestamp/youtube";
-import { isCaptureRequest, type CaptureResult } from "../src/lib/messages";
+import { isCaptureRequest, isInfoRequest, type CaptureResult, type InfoResult } from "../src/lib/messages";
 import { appendRecord, settingsItem } from "../src/ext/storage";
 
 export default defineContentScript({
   matches: ["*://www.youtube.com/*"],
   main() {
     browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-      if (!isCaptureRequest(message)) return;
-      capture().then(sendResponse);
-      return true; // 非同期応答
+      if (isCaptureRequest(message)) {
+        capture().then(sendResponse);
+        return true; // 非同期応答
+      }
+      if (isInfoRequest(message)) {
+        sendResponse(info());
+      }
     });
   },
 });
+
+function info(): InfoResult {
+  const p = createDocumentProvider();
+  return { type: "info:result", videoId: p.videoId(), hasStreamStart: p.streamStartAt() != null };
+}
 
 async function capture(): Promise<CaptureResult> {
   try {

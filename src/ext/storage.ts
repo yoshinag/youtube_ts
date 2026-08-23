@@ -1,7 +1,7 @@
 /** records / settings の永続化（GDR-EXT-001 / GDR-STORE-001 v2） */
 import { storage } from "wxt/utils/storage";
 import type { TimestampRecord } from "../lib/timestamp";
-import { appendRecordPure, removeRecord, SCHEMA_VERSION, type AppendResult } from "../lib/records";
+import { appendRecordPure, normalizeOffset, removeRecord, SCHEMA_VERSION, updateRecord, type AppendResult } from "../lib/records";
 
 export interface Settings {
   /** 視聴遅延の補正（秒）。負値で「少し前」を指す */
@@ -41,6 +41,19 @@ export function deleteRecord(id: string): Promise<void> {
   return serialized(async () => {
     await recordsItem.setValue(removeRecord(await recordsItem.getValue(), id));
   });
+}
+
+export function patchRecord(id: string, patch: Partial<Pick<TimestampRecord, "note">>): Promise<void> {
+  return serialized(async () => {
+    await recordsItem.setValue(updateRecord(await recordsItem.getValue(), id, patch));
+  });
+}
+
+export async function saveOffset(value: unknown): Promise<number> {
+  const offsetSec = normalizeOffset(value);
+  const current = await settingsItem.getValue();
+  await settingsItem.setValue({ ...current, offsetSec });
+  return offsetSec;
 }
 
 export function clearRecords(): Promise<void> {
