@@ -2,7 +2,7 @@
 
 ## GDR-STORE-002: 配信メタを別キーで持ち、記録は videoId で紐づける
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** data, spec
 - **決定:**
   - 新キー `local:streams`: `Record<videoId, StreamMeta>`。`StreamMeta = { videoId, title, channel, streamStartAt, firstCapturedAt, lastCapturedAt }`

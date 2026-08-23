@@ -7,8 +7,8 @@
 
 | GDR ID | 決定の要約 | status |
 |---|---|---|
-| GDR-STORE-002 | 配信メタ（タイトル・チャンネル・開始時刻）を `local:streams` に `videoId` キーで別持ちし、記録は `videoId` で紐づける（記録にタイトルを複製しない） | Accepted |
-| GDR-UI-004 | popup は配信をアコーディオンの親、記録を子として表示する。現在の配信を先頭に展開し、「この配信のみ」フィルタは廃止 | Accepted |
+| GDR-STORE-002 | 配信メタ（タイトル・チャンネル・開始時刻）を `local:streams` に `videoId` キーで別持ちし、記録は `videoId` で紐づける（記録にタイトルを複製しない） | Implemented |
+| GDR-UI-004 | popup は配信をアコーディオンの親、記録を子として表示する。現在の配信を先頭に展開し、「この配信のみ」フィルタは廃止 | Implemented |
 
 ---
 
@@ -16,7 +16,7 @@
 
 **GDR-STORE-002: 配信メタを別キーで持ち、記録は videoId で紐づける**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** data, spec
 - **決定:**
   - 新キー `local:streams`: `Record<videoId, StreamMeta>`。`StreamMeta = { videoId, title, channel, streamStartAt, firstCapturedAt, lastCapturedAt }`
@@ -43,7 +43,7 @@
 
 **GDR-UI-004: popup は配信を親、記録を子として表示する**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** ui
 - **決定:**
   - 一覧は配信ごとのセクション（`<details>`）。ヘッダーにタイトル・件数・最終記録時刻、展開すると記録行
@@ -140,22 +140,22 @@ toExportText(records, streams): string                               // 見出�
 
 | # | タスク | 根拠 GDR | 依存 | ステータス |
 |---|---|---|---|---|
-| 1.1 | `parseVideoDetails` + provider の `title()` / `channel()` + テスト | GDR-STORE-002 | — | 未着手 |
-| 1.2 | `src/lib/streams.ts`（upsert / orphan / group / export）+ テスト。`records.ts` の旧 `toExportText` / `groupByVideo` / `filterByVideo` は削除して一本化 | GDR-STORE-002 | 1.1 | 未着手 |
-| 1.3 | `storage.ts` に `streamsItem`、`appendRecord` / `deleteRecord` / `deleteStream` で整合を保つ。`InfoResult` / `CaptureRequest` 拡張 | GDR-STORE-002 | 1.2 | 未着手 |
-| 1.4 | popup をアコーディオン表示に置換、フィルタ削除 | GDR-UI-004 | 1.3 | 未着手 |
-| 1.5 | typecheck / test / build、README | — | 1.4 | 未着手 |
+| 1.1 | `parseVideoDetails` + provider の `title()` / `channel()` + テスト | GDR-STORE-002 | — | 完了 |
+| 1.2 | `src/lib/streams.ts`（upsert / orphan / group / export）+ テスト。`records.ts` の旧 `toExportText` / `groupByVideo` / `filterByVideo` は削除して一本化 | GDR-STORE-002 | 1.1 | 完了 |
+| 1.3 | `storage.ts` に `streamsItem`、`appendRecord` / `deleteRecord` / `deleteStream` で整合を保つ。`InfoResult` / `CaptureRequest` 拡張 | GDR-STORE-002 | 1.2 | 完了 |
+| 1.4 | popup をアコーディオン表示に置換、フィルタ削除 | GDR-UI-004 | 1.3 | 完了 |
+| 1.5 | typecheck / test / build、README | — | 1.4 | 完了 |
 | 2.1 | 実機検証（タイトル取得、旧記録の仮メタ表示、配信単位の削除 / コピー） | 両方 | 1.5 | 未着手 |
 
 ### 6.2. フェーズ詳細
 
-#### フェーズ 1: 配信別管理
+#### フェーズ 1: 配信別管理 ✅
 
-- [ ] 1.1 取得 — `src/lib/timestamp/youtube.ts` / `youtube.test.ts`
-- [ ] 1.2 純関数 — `src/lib/streams.ts` / `streams.test.ts` / `records.ts`
-- [ ] 1.3 ストレージ・メッセージ — `src/ext/storage.ts` / `src/lib/messages.ts` / `entrypoints/youtube.content.ts`
-- [ ] 1.4 popup — `entrypoints/popup/`
-- [ ] 1.5 検証と README
+- [x] 1.1 取得 — `src/lib/timestamp/youtube.ts` / `youtube.test.ts`
+- [x] 1.2 純関数 — `src/lib/streams.ts` / `streams.test.ts` / `records.ts`
+- [x] 1.3 ストレージ・メッセージ — `src/ext/storage.ts` / `src/lib/messages.ts` / `entrypoints/youtube.content.ts`
+- [x] 1.4 popup — `entrypoints/popup/`
+- [x] 1.5 検証と README
 
 #### フェーズ 2: 実機検証
 
@@ -165,7 +165,7 @@ toExportText(records, streams): string                               // 見出�
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
-| 1 | 5 | 0 | 5 | — |
+| 1 | 5 | 5 | 0 | dffdc80, 143a644, a09ef01, ecff0d2 |
 | 2 | 1 | 0 | 1 | — |
 
 ---
@@ -174,8 +174,12 @@ toExportText(records, streams): string                               // 見出�
 
 ### 7.1. 観察された傾向
 
-（実装後に記入）
+- **実装からの発見:** `groupRecordsByStream` で「現在の配信を先頭へ移動」と「仮メタのタイトル補完」を別分岐に書いたため、移動ケースで補完が抜けた。テストが先に検出した（純関数 + テストの方針が効いている）
+- **記録スキーマを据え置いた**ことで migration ゼロで済んだ。`streams` は記録から再構築可能な派生データに近く、欠けても表示が `videoId` に落ちるだけで壊れない
+- popup `main.ts` は約 230 行。次に機能を足すなら描画部（`renderGroup` / `renderRow`）を別ファイルに分ける
 
 ### 7.2. 次回への申し送り
 
+- **フェーズ 2（実機検証）未実施**: タイトル・チャンネルの取得、旧記録（タイトル未取得）の表示と次回記録での補完、配信単位のコピー / 削除、アコーディオンの開閉
 - 配信単位のネスト構造（v3）は見送り。配信数が増えたら再検討
+- popup 描画部の分割は GDR-UI 候補

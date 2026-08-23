@@ -2,7 +2,7 @@
 
 ## GDR-UI-004: popup は配信を親、記録を子として表示する
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** ui
 - **決定:**
   - 一覧は配信ごとのセクション（`<details>`）。ヘッダーにタイトル・件数・最終記録時刻、展開すると記録行
