@@ -26,7 +26,8 @@
   - 権限は **`storage` のみ**。`host_permissions` / `tabs` / `activeTab` / `scripting` は宣言しない
   - 記録トリガーは `commands`（既定 `Alt+Shift+T`）。manifest の `commands` は権限不要
   - 拡張内メッセージは `{ type: "capture" }` / `{ type: "capture:result", ok, record | error }` の discriminated union を `src/lib/messages.ts` に型定義し、`chrome.runtime.sendMessage` / `chrome.tabs.sendMessage` で送る
-  - ストレージは `chrome.storage.local` を使い、キーは `records`（`TimestampRecord[]`）。スキーマの詳細設計は GDR-STORE-001 で扱う
+  - ストレージは WXT の `wxt/utils/storage` 経由で `local:` 領域を使う（`local:records` = `TimestampRecord[]`、`local:settings` = `{ offsetSec }`）。スキーマの詳細設計は GDR-STORE-001 で扱う
+  - `src/lib/` は WXT / `browser` API に依存させない（純 TS のまま vitest で検証）。拡張 API に触るのは `entrypoints/` と `src/ext/` だけ
 - **理由:**
   - WXT は manifest 自動生成・HMR・`@types/chrome` 同梱・vitest 連携があり、単独開発者の立ち上げコストが最小（GDR-DOM-001 フェーズ 1 でも vitest を前提にしている）
   - GDR-DOM-001 で MAIN world 注入を不採用にしたため、content script は ISOLATED world だけで完結し `scripting` 権限が不要
@@ -39,7 +40,8 @@
   - ディレクトリは WXT 標準（`entrypoints/` / `src/lib/` / `public/`）。`src/lib/timestamp/` は既存のまま
   - `npm run dev`（`wxt`）/ `npm run build`（`wxt build`）/ `npm test`（vitest）/ `npm run typecheck`
   - content script は記録アクション時のみ動作し、常駐監視はしない（GDR-DOM-001 perf 方針を踏襲）
-  - `offsetSec` は当面 `chrome.storage.local` の `settings.offsetSec` から読む（既定 0）。設定 UI は GDR-UI 候補
+  - `offsetSec` は当面 `local:settings.offsetSec` から読む（既定 0）。設定 UI は GDR-UI 候補
+  - 記録成功時は `browser.action.setBadgeText` で当該タブに件数を表示する（`action` は権限不要）。ページ内トーストは GDR-UI 候補
 - **再検討条件:**
   - Firefox 対応を行う → WXT の `browser` 抽象は対応済みだが、`commands` / MV3 background の差異を確認し GDR-EXT を分割
   - SPA 遷移後の再取得で `webNavigation` 等の権限が必要になった → 権限追加の GDR
@@ -77,9 +79,10 @@ entrypoints/
     index.html
     main.ts
 src/lib/
-  timestamp/        # 既存（GDR-DOM-001）
-  messages.ts       # メッセージ型
-  storage.ts        # records / settings の読み書き（薄いラッパ）
+  timestamp/        # 既存（GDR-DOM-001）。WXT 非依存
+  messages.ts       # メッセージ型。WXT 非依存
+src/ext/
+  storage.ts        # wxt/utils/storage の defineItem（records / settings）
 public/
   icon/             # 後で用意。当面は WXT の既定
 ```
@@ -109,8 +112,9 @@ export default defineConfig({
 [Alt+Shift+T] → background.onCommand(cmd, tab)
               → browser.tabs.sendMessage(tab.id, { type: "capture" })
               → content: captureTimestamp(createDocumentProvider(), offsetSec)
-              → storage.appendRecord(record)
+              → appendRecord(record)（wxt/utils/storage）
               → 応答 { type: "capture:result", ok: true, record }
+              → background: action.setBadgeText({ tabId, text: String(count) })
 popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全件を新しい順に表示
 ```
 
@@ -123,7 +127,7 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 |---|---|---|
 | `storage` | 必要 | 記録の永続化 |
 | content script `matches` | 必要 | `*://www.youtube.com/*`。これ自体は permission ではなく宣言 |
-| `tabs` | 不要 | URL は content 側で取得。`onCommand` に tab が渡る |
+| `tabs` | 不要 | URL は content 側で取得。`onCommand` に tab が渡る（`tab.url` は読めないが `tab.id` で sendMessage できる） |
 | `activeTab` | 不要 | 注入もページ情報取得も行わない |
 | `scripting` | 不要 | MAIN world 注入を不採用（GDR-DOM-001） |
 | `host_permissions` | 不要 | `fetch` 等のクロスオリジン要求をしない |
@@ -142,8 +146,11 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
    - 解決策: background 側で `catch` して無視（ログのみ）
    - → フェーズ 1 の background 実装に反映
 4. **popup が storage 変更を即時反映するか**
-   - 解決策: `storage.onChanged` で再描画。軽量なので入れる
+   - 解決策: `wxt/utils/storage` の `watch` で再描画。軽量なので入れる
    - → フェーズ 1 の popup 実装に反映
+5. **append の read-modify-write 競合**
+   - 解決策: 連打時に記録が落ちる可能性があるが頻度は低い。スキーマ設計と併せて GDR-STORE-001 で扱う
+   - → 既知の制約として申し送り
 
 ---
 
@@ -166,8 +173,8 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 
 **目的:** `wxt build` が通り、ショートカット → 記録 → popup 表示が一通りつながる
 
-- [ ] 1.1 WXT 導入 — `package.json` / `wxt.config.ts` / `tsconfig.json`（`.wxt/tsconfig.json` を extends）
-- [ ] 1.2 共通モジュール — `src/lib/messages.ts` / `src/lib/storage.ts`
+- [ ] 1.1 WXT 導入 — `package.json` / `wxt.config.ts` / `tsconfig.json`（`.wxt/tsconfig.json` を extends し、`vitest/globals` は `compilerOptions.types` で追加。`wxt prepare` を `postinstall` に登録）
+- [ ] 1.2 共通モジュール — `src/lib/messages.ts` / `src/ext/storage.ts`
 - [ ] 1.3 エントリ — `entrypoints/background.ts` / `entrypoints/youtube.content.ts`
 - [ ] 1.4 popup — `entrypoints/popup/index.html` / `main.ts`
 - [ ] 1.5 ビルド確認と README
@@ -195,5 +202,5 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 
 ### 7.2. 次回への申し送り
 
-- ストレージのスキーマ（上限・重複・エクスポート形式）は GDR-STORE-001 で確定する
+- ストレージのスキーマ（上限・重複・append 競合・エクスポート形式）は GDR-STORE-001 で確定する
 - popup のタブ別フィルタ・トースト・設定 UI は GDR-UI 候補
