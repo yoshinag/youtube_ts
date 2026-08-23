@@ -7,8 +7,8 @@
 
 | GDR ID | 決定の要約 | status |
 |---|---|---|
-| GDR-STORE-001 | `local:records` を version 付き単一配列で持ち、`id` 付与・連打重複排除・上限 5000 件・書き込み直列化・JSON / テキストの 2 形式で書き出す | Accepted |
-| GDR-UI-001 | popup はダークテーマを既定とする | Accepted |
+| GDR-STORE-001 | `local:records` を version 付き単一配列で持ち、`id` 付与・連打重複排除・上限 5000 件・書き込み直列化・JSON / テキストの 2 形式で書き出す | Implemented |
+| GDR-UI-001 | popup はダークテーマを既定とする | Implemented |
 
 ---
 
@@ -16,7 +16,7 @@
 
 **GDR-STORE-001: 記録の永続化スキーマ**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** data, spec
 - **決定:**
   - キーは `local:records`（`TimestampRecord[]`）と `local:settings`（`Settings`）の 2 つ。WXT `defineItem` の `version` / `migrations` でスキーマ変更を追跡する（現行 v2）
@@ -50,7 +50,7 @@
 
 **GDR-UI-001: popup はダークテーマを既定とする**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** ui
 - **決定:** popup は**ダークテーマのみ**を実装し、`color-scheme: dark` を宣言する。OS のライト設定には追従しない
 - **理由:** YouTube のライブ視聴は暗いテーマで行われることが多く、popup が白く光ると視聴を妨げる（ユーザー指示 2026-08-24）。**代替案: `prefers-color-scheme` に追従** → 2 パレット分の保守が要り、現状の画面規模では見合わない。却下
@@ -169,22 +169,22 @@ export function toExportText(records): string   // videoId ごとにグループ
 
 | # | タスク | 根拠 GDR | 依存 | ステータス |
 |---|---|---|---|---|
-| 1.1 | `TimestampRecord.id` 追加、`captureTimestamp` で生成（provider 注入）、既存テスト更新 | GDR-STORE-001 | — | 未着手 |
-| 1.2 | `src/lib/records.ts`（append ポリシー / 書き出し）+ テスト | GDR-STORE-001 | 1.1 | 未着手 |
-| 1.3 | `src/ext/storage.ts` を v2 + migration + 直列化に更新、`CaptureResult` 拡張、background バッジ | GDR-STORE-001 | 1.2 | 未着手 |
-| 1.4 | popup: ダーク配色・個別削除・コピー・JSON 書き出し | GDR-STORE-001, GDR-UI-001 | 1.3 | 未着手 |
-| 1.5 | `wxt build` / test / typecheck pass | GDR-STORE-001 | 1.4 | 未着手 |
+| 1.1 | `TimestampRecord.id` 追加、`captureTimestamp` で生成（provider 注入）、既存テスト更新 | GDR-STORE-001 | — | 完了 |
+| 1.2 | `src/lib/records.ts`（append ポリシー / 書き出し）+ テスト | GDR-STORE-001 | 1.1 | 完了 |
+| 1.3 | `src/ext/storage.ts` を v2 + migration + 直列化に更新、`CaptureResult` 拡張、background バッジ | GDR-STORE-001 | 1.2 | 完了 |
+| 1.4 | popup: ダーク配色・個別削除・コピー・JSON 書き出し | GDR-STORE-001, GDR-UI-001 | 1.3 | 完了 |
+| 1.5 | `wxt build` / test / typecheck pass | GDR-STORE-001 | 1.4 | 完了 |
 | 2.1 | 実機検証（migration / 連打 / 書き出し / ダーク表示） | GDR-STORE-001, GDR-UI-001 | 1.5 | 未着手 |
 
 ### 6.2. フェーズ詳細
 
-#### フェーズ 1: スキーマと UI
+#### フェーズ 1: スキーマと UI ✅
 
-- [ ] 1.1 `id` 追加 — `src/lib/timestamp/index.ts` / `index.test.ts`
-- [ ] 1.2 レコード操作 — `src/lib/records.ts` / `records.test.ts`
-- [ ] 1.3 ストレージ — `src/ext/storage.ts` / `src/lib/messages.ts` / `entrypoints/background.ts` / `youtube.content.ts`
-- [ ] 1.4 popup — `entrypoints/popup/index.html` / `main.ts`
-- [ ] 1.5 検証コマンド pass
+- [x] 1.1 `id` 追加 — `src/lib/timestamp/index.ts` / `index.test.ts`
+- [x] 1.2 レコード操作 — `src/lib/records.ts` / `records.test.ts`
+- [x] 1.3 ストレージ — `src/ext/storage.ts` / `src/lib/messages.ts` / `entrypoints/background.ts` / `youtube.content.ts`
+- [x] 1.4 popup — `entrypoints/popup/index.html` / `main.ts`
+- [x] 1.5 検証コマンド pass
 
 #### フェーズ 2: 実機検証
 
@@ -194,7 +194,7 @@ export function toExportText(records): string   // videoId ごとにグループ
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
-| 1 | 5 | 0 | 5 | — |
+| 1 | 5 | 5 | 0 | 7363180, 1653321, 64488fc |
 | 2 | 1 | 0 | 1 | — |
 
 ---
@@ -203,9 +203,13 @@ export function toExportText(records): string   // videoId ごとにグループ
 
 ### 7.1. 観察された傾向
 
-（実装後に記入）
+- **純関数への分離が効いた:** 重複排除・上限・書き出し順序はすべて `src/lib/records.ts` のテスト（9 件）で固定でき、拡張 API に触る `src/ext/storage.ts` は薄いまま
+- **id の採番を provider 経由にした**ことで `captureTimestamp` のテストが決定的になった（`crypto.randomUUID` 直呼びは既定経路としてのみ残す）
+- ダークテーマは CSS 変数 7 つに集約。ライト対応が必要になっても差し替え点は 1 箇所
 
 ### 7.2. 次回への申し送り
 
+- **フェーズ 2（実機検証）未実施**: v1 データの migration（既に記録がある環境で popup を開く）、連打で `=` バッジ、テキストコピー、JSON ダウンロード、ダーク表示
 - `note` の編集 UI は未実装（スキーマには存在）。GDR-UI 候補
 - `offsetSec` の設定 UI は未実装。GDR-UI 候補
+- JSON のインポートは未実装（再検討条件）

@@ -32,7 +32,8 @@ YouTube ライブ配信視聴中のタイムスタンプを記録・一覧・書
 
 - TypeScript / WXT 0.21 / Manifest V3 / Chrome のみ（GDR-EXT-001）
 - `entrypoints/`: `youtube.content.ts`（記録）/ `background.ts`（ショートカット受信・バッジ）/ `popup/`（一覧、素の TS）
-- `src/lib/`: WXT 非依存の純 TS（vitest 対象）。`src/ext/`: WXT storage 等の拡張 API ラッパ
+- `src/lib/`: WXT 非依存の純 TS（vitest 対象）。`timestamp/` 取得、`records.ts` 重複排除・上限・書き出し、`messages.ts` 型。`src/ext/storage.ts`: WXT storage（`local:records` v2 / `local:settings`）と書き込み直列化
+- ストレージ: 上限 5000 件・連打 1.5 秒は重複（GDR-STORE-001）。popup はダークテーマのみ（GDR-UI-001）
 - 権限は `storage` のみ。`tabs` / `activeTab` / `scripting` / `host_permissions` は追加しない（追加するなら GDR）
 - `npm run build` → `dist/chrome-mv3/` / `npm test` / `npm run typecheck`
 - タイムスタンプ取得ロジックは `src/lib/timestamp/`（純 TS、`npm test` で vitest）。一次ソースは実時刻 − 配信開始時刻（GDR-DOM-001）

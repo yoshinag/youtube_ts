@@ -4,7 +4,7 @@
 
 ## GDR-UI-001: popup はダークテーマを既定とする
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** ui
 - **決定:** popup は**ダークテーマのみ**を実装し、`color-scheme: dark` を宣言する。OS のライト設定には追従しない
 - **理由:** YouTube のライブ視聴は暗いテーマで行われることが多く、popup が白く光ると視聴を妨げる（ユーザー指示 2026-08-24）。**代替案: `prefers-color-scheme` に追従** → 2 パレット分の保守が要り、現状の画面規模では見合わない。却下

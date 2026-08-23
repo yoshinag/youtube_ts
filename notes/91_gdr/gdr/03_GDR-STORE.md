@@ -4,7 +4,7 @@
 
 ## GDR-STORE-001: 記録の永続化スキーマ
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** data, spec
 - **決定:**
   - キーは `local:records`（`TimestampRecord[]`）と `local:settings`（`Settings`）の 2 つ。WXT `defineItem` の `version` / `migrations` でスキーマ変更を追跡する（現行 v2）
