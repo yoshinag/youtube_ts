@@ -23,7 +23,7 @@
   - `TimestampRecord` に **`id`（`crypto.randomUUID()`）** を追加し、個別削除・重複判定のキーにする。v1（id なし）からの migration で補完する
   - **重複排除:** 同一 `videoId` で直前レコードの `capturedAt` から **1.5 秒以内** の記録は「連打」とみなして捨て、`capture:result` で `duplicate: true` を返す
   - **上限:** 5000 件。超過時は **古い順に削除**し、削除件数を `capture:result.pruned` で返す（黙って消さない）
-  - **書き込み直列化:** 追記は content script 内の Promise チェーンで直列化する（同一タブ内の競合を排除）。複数タブ同時記録の競合は許容（発生確率が低く、失っても 1 件）
+  - **書き込み直列化:** 追記は content script 内の Promise チェーンで直列化する（同一タブ内の追記同士の競合を排除）。複数タブ同時記録や popup の削除との競合は許容（発生確率が低く、失っても 1 件）
   - **書き出し形式:** 2 種
     - JSON: `{ version, exportedAt, records }` の全件（バックアップ・再インポート用）
     - テキスト: 動画ごとに `h:mm:ss メモ` を 1 行ずつ（YouTube コメント / 概要欄にそのまま貼れる）
@@ -103,6 +103,8 @@ export const recordsItem = storage.defineItem<TimestampRecord[]>("local:records"
 });
 ```
 
+WXT は version メタ（`local:records$`）が無い既存値を v1 とみなすため、現行データには migration 2 が適用される。
+
 ### 4.2. 追記ポリシー（純関数）
 
 ```ts
@@ -118,14 +120,14 @@ export interface AppendResult {
 export function appendRecordPure(records, record, opts = { dedupWindowMs, maxRecords }): AppendResult
 ```
 
-- 重複判定は「同一 `videoId` の**最後の**レコード」との `capturedAt` 差のみを見る（全走査しない）
+- 重複判定は「同一 `videoId` の**最後の**レコード」との `capturedAt` 差のみを見る。末尾から逆走査して最初に見つかったものと比較するので、配列末尾が別動画でも正しく動く
 - 上限超過時は先頭（古い順）から削除
 
 ### 4.3. 書き出し
 
 ```ts
 export function toExportJson(records): string   // { version: 2, exportedAt, records }
-export function toExportText(records): string   // videoId ごとにグループ化、各行 "h:mm:ss note"
+export function toExportText(records): string   // videoId ごとにグループ化（最初の記録の capturedAt 順）、各行 "h:mm:ss note"（elapsedSec 昇順）
 ```
 
 テキスト例:
