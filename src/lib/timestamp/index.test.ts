@@ -8,6 +8,7 @@ function provider(over: Partial<StreamInfoProvider> = {}): StreamInfoProvider {
     videoId: () => "abc123XYZ_-",
     streamStartAt: () => START,
     now: () => startMs + 90_000, // 1 分 30 秒後
+    newId: () => "id-1",
     ...over,
   };
 }
@@ -16,6 +17,7 @@ describe("captureTimestamp", () => {
   it("実時刻 − 配信開始時刻を経過秒として記録する", () => {
     const r = captureTimestamp(provider());
     expect(r).toEqual({
+      id: "id-1",
       videoId: "abc123XYZ_-",
       elapsedSec: 90,
       capturedAt: startMs + 90_000,
@@ -23,6 +25,11 @@ describe("captureTimestamp", () => {
       offsetSec: 0,
       source: "clock",
     });
+  });
+
+  it("newId 未指定なら crypto.randomUUID() で採番する", () => {
+    const r = captureTimestamp(provider({ newId: undefined }));
+    expect(r.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("offsetSec を加算し、負の補正も適用する", () => {

@@ -6,6 +6,8 @@
 export type TimestampSource = "clock";
 
 export interface TimestampRecord {
+  /** 一意 ID（GDR-STORE-001, v2 で追加） */
+  id: string;
   videoId: string;
   /** 配信開始基準の経過秒（offsetSec 適用後、0 以上） */
   elapsedSec: number;
@@ -24,6 +26,8 @@ export interface StreamInfoProvider {
   videoId(): string | null;
   streamStartAt(): string | null;
   now(): number;
+  /** レコード ID の生成。既定は crypto.randomUUID() */
+  newId?(): string;
 }
 
 export type TimestampErrorReason = "videoId unavailable" | "streamStartAt unavailable";
@@ -47,7 +51,8 @@ export function captureTimestamp(p: StreamInfoProvider, offsetSec = 0): Timestam
 
   const capturedAt = p.now();
   const elapsedSec = Math.max(0, (capturedAt - startMs) / 1000 + offsetSec);
-  return { videoId, elapsedSec, capturedAt, streamStartAt, offsetSec, source: "clock" };
+  const id = p.newId ? p.newId() : crypto.randomUUID();
+  return { id, videoId, elapsedSec, capturedAt, streamStartAt, offsetSec, source: "clock" };
 }
 
 /** 経過秒を YouTube のコメント / チャプターで使える `h:mm:ss` 形式にする */
