@@ -7,7 +7,7 @@
 
 | GDR ID | 決定の要約 | status |
 |---|---|---|
-| GDR-EXT-001 | WXT で content script + background + popup の 3 エントリ構成。権限は `storage` のみ、host は `www.youtube.com` の content script match で完結 | Proposed |
+| GDR-EXT-001 | WXT で content script + background + popup の 3 エントリ構成。権限は `storage` のみ、host は `www.youtube.com` の content script match で完結 | Accepted |
 
 ---
 
@@ -15,7 +15,7 @@
 
 **GDR-EXT-001: WXT 3 エントリ構成・最小権限**
 
-- **status:** Proposed
+- **status:** Accepted
 - **scope:** arch, pol
 - **決定:**
   - フレームワークは **WXT**（0.21 系）、Manifest V3、ターゲットは Chrome のみ
