@@ -97,6 +97,7 @@ export type InfoResult = { type: "info:result"; videoId: string | null; hasStrea
 ```
 
 - 「記録」はライブページでないとき disabled + ツールチップ「YouTube のライブ配信ページで開いてください」
+- フィルタ中は件数を「M / N 件」と表示し、他の配信の記録が隠れているだけだと分かるようにする
 - 記録成功時は一覧が `watch` で即更新される。重複時は status 行に「直前の記録と重複」
 
 ### 4.3. 純関数
@@ -109,7 +110,7 @@ export function filterByVideo(records, videoId: string | null): TimestampRecord[
 
 ### 4.4. 編集中の再描画
 
-popup 内に `editingId` を持ち、`watch` コールバックは `editingId != null` のとき最新値を保留し、編集終了時に再描画する。
+popup 内に `editingId` を持ち、`watch` コールバックは `editingId != null` のとき最新値を `pending` に保留し、編集終了時に `pending` があれば必ず再描画する。
 
 ---
 
@@ -121,6 +122,8 @@ popup 内に `editingId` を持ち、`watch` コールバックは `editingId !=
    - 解決策: catch して「ページを再読み込みしてください」を表示
 3. **`offsetSec` の入力範囲**
    - 解決策: `-600..600` に clamp。ライブ遅延は通常 数秒〜60 秒程度で十分
+4. **「記録」ボタンの基準時刻**
+   - popup を開いてからボタンを押すまでの時間が記録位置に乗る。本 GDR では押下時刻（content script の `now()`）を採用。不満が出たら「popup を開いた時刻」基準を再検討
 
 ---
 
