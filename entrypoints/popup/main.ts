@@ -2,7 +2,10 @@
 import { formatElapsed, type TimestampRecord } from "../../src/lib/timestamp";
 import { toExportJson } from "../../src/lib/records";
 import { groupRecordsByStream, toExportText, type StreamMap } from "../../src/lib/streams";
-import type { CaptureRequest, CaptureResult, InfoRequest, InfoResult } from "../../src/lib/messages";
+import type {
+  CaptureRequest, CaptureResult, InfoRequest, InfoResult, ScreenshotRequest, ScreenshotResult, SkipRequest, SkipResult,
+} from "../../src/lib/messages";
+import { formatTenths } from "../../src/lib/player";
 import {
   clearRecords, deleteRecord, deleteStream, patchRecord, recordsItem, saveOffset, settingsItem, streamsItem,
 } from "../../src/ext/storage";
@@ -14,6 +17,8 @@ const count = $<HTMLSpanElement>("count");
 const empty = $<HTMLParagraphElement>("empty");
 const status = $<HTMLDivElement>("status");
 const captureBtn = $<HTMLButtonElement>("capture");
+const shotBtn = $<HTMLButtonElement>("shot");
+const skipBtns = Array.from($<HTMLDivElement>("skip").querySelectorAll("button"));
 const offsetInput = $<HTMLInputElement>("offset");
 
 // ---- 状態 ----------------------------------------------------------------
@@ -24,6 +29,8 @@ let current: { videoId: string; title: string | null; channel: string | null } |
 let activeTabId: number | undefined;
 let editingId: string | null = null;
 let dirtyWhileEditing = false;
+/** このセッションで保存した最新スクショ（📁 で開く） */
+let lastDownloadId: number | null = null;
 const openState = new Map<string, boolean>();
 
 async function reload() {
@@ -88,6 +95,7 @@ async function detectActiveTab() {
     const req: InfoRequest = { type: "info" };
     const info = (await browser.tabs.sendMessage(activeTabId, req)) as InfoResult | undefined;
     current = info?.videoId ? { videoId: info.videoId, title: info.title, channel: info.channel } : null;
+    setVideoControls(info?.hasVideo ?? false);
     captureBtn.disabled = !info?.hasStreamStart;
     captureBtn.title = info?.hasStreamStart
       ? "現在の配信のタイムスタンプを記録"
@@ -96,9 +104,16 @@ async function detectActiveTab() {
         : "YouTube のライブ配信ページで開いてください";
   } catch {
     current = null;
+    setVideoControls(false);
     captureBtn.disabled = true;
     captureBtn.title = "YouTube のライブ配信ページで開いてください（拡張更新後はページの再読み込みが必要）";
   }
+}
+
+/** スキップ / スクショは `<video>` があるページで有効（ライブでなくても可。GDR-DOM-002） */
+function setVideoControls(enabled: boolean) {
+  shotBtn.disabled = !enabled;
+  for (const b of skipBtns) b.disabled = !enabled;
 }
 
 captureBtn.addEventListener("click", async () => {
@@ -116,6 +131,52 @@ captureBtn.addEventListener("click", async () => {
     captureBtn.disabled = false;
   }
 });
+
+// ---- スキップ・スクショ（GDR-DOM-002 / GDR-EXT-002） ---------------------------
+
+for (const b of skipBtns) {
+  b.addEventListener("click", async () => {
+    if (activeTabId == null) return;
+    const req: SkipRequest = { type: "skip", deltaSec: Number(b.dataset.delta) };
+    const res = (await browser.tabs.sendMessage(activeTabId, req).catch(() => undefined)) as SkipResult | undefined;
+    if (!res) flash("応答がありません。ページを再読み込みしてください");
+    else if (!res.ok) flash(`スキップできません: ${res.error}`);
+    else if (res.behindLiveSec != null) flash(`ライブより ${res.behindLiveSec.toFixed(1)} 秒前（位置 ${formatTenths(res.currentTime)}）`);
+    else flash(`位置 ${formatTenths(res.currentTime)}`);
+  });
+}
+
+shotBtn.addEventListener("click", async () => {
+  if (activeTabId == null) return;
+  shotBtn.disabled = true;
+  try {
+    const req: ScreenshotRequest = { type: "screenshot", tabId: activeTabId };
+    const res = (await browser.runtime.sendMessage(req).catch(() => undefined)) as ScreenshotResult | undefined;
+    if (!res) flash("応答がありません。拡張を再読み込みしてください");
+    else if (!res.ok) flash(`保存できません: ${res.error}`);
+    else {
+      lastDownloadId = res.downloadId;
+      flash(`${res.filename} を保存`);
+    }
+  } finally {
+    shotBtn.disabled = false;
+  }
+});
+
+$("folder").addEventListener("click", async () => {
+  const id = lastDownloadId ?? (await latestScreenshotId());
+  if (id != null) browser.downloads.show(id);
+  else {
+    browser.downloads.showDefaultFolder();
+    flash("スクショがまだありません。ダウンロードフォルダを開きます");
+  }
+});
+
+/** 過去に保存したスクショのうち最新で、まだ存在するものの downloadId */
+async function latestScreenshotId(): Promise<number | null> {
+  const items = await browser.downloads.search({ filenameRegex: "/ss/[^/]+\\.png$", orderBy: ["-startTime"], limit: 5 });
+  return items.find((d) => d.exists !== false && d.state === "complete")?.id ?? null;
+}
 
 // ---- 設定・一括操作 --------------------------------------------------------
 
