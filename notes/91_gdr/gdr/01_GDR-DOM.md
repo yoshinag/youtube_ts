@@ -34,5 +34,39 @@
   - 遅延補正を手動で行うのが煩雑という声が出た → `video.buffered` / `getProgressState` 等による自動推定の検討
   - VOD 化後の時間軸と数十秒以上のずれが常態化した → 開始オフセット補正値の導入を検討
 - **日時:** 2026-08-24T00:00:00+09:00
-- **関連:** derived-from §2-1, §2-2; relates-to GDR-META-001
+- **関連:** derived-from §2-1, §2-2; relates-to GDR-META-001; refined-by GDR-DOM-002（`behindLiveSec` 補正）
 - **出典:** [notes/20_kaizen/2026-08-24_timestamp_source.md](../../20_kaizen/2026-08-24_timestamp_source.md)
+
+## GDR-DOM-002: スキップとフレーム取得は `<video>` 要素を直接操作し、経過秒は再生位置に追従させる
+
+
+- **status:** Accepted
+- **scope:** arch, spec
+- **決定:**
+  - content script が `document.querySelector("video.html5-main-video") ?? document.querySelector("video")` を対象に、`video.currentTime += deltaSec` でスキップする。`deltaSec` は ±0.1 / 1 / 10 / 30 / 60 / 300 の 12 種。結果は `[0, seekable.end]` にクランプする（ブラウザ側でも同等に丸められる）
+  - フレーム取得は `canvas.drawImage(video)` → `canvas.toBlob("image/png")` → data URL。解像度は `video.videoWidth × videoHeight`（再生中の画質そのまま）。`readyState < 2`（HAVE_CURRENT_DATA 未満）または `videoWidth === 0` のときは `"frame unavailable"` を返す
+  - **再生位置への追従:** `behindLiveSec = video.seekable.end(0) − video.currentTime` を「ライブ端からの遅れ」とみなし、記録・スクショの経過秒を `elapsedSec = (now − streamStartAt) / 1000 − behindLiveSec + offsetSec` とする。`seekable` が空、または値が `[0, 43200]`（DVR 上限 12 時間）を外れるときは `behindLiveSec = 0`（= 現行動作）。`TimestampRecord` に `behindLiveSec?: number` を追加する（省略時 0。任意フィールドなので schema version は据え置き）
+  - `source` は `"clock"` のまま（一次ソースは実時刻のまま、補正項が増えただけ）
+  - **前提の事前確認（タスク 0）:** 実装前に DevTools で `seekable.end(0) − currentTime` を数十秒観察し、(a) ライブ端でほぼ一定（揺れ ±1 秒以内）、(b) 30 秒戻すと約 30 増える、(c) 一時停止中に毎秒 1 増える、を確認する。(a) が崩れる（セグメント追加ごとに数秒跳ねる）場合は**追従を採用せず代替案 C（実時刻のみ、現行どおり）に戻す**。閾値を超えたときだけ補正する方式は不連続で説明しにくいため採らない
+  - MAIN world 注入・プレイヤー API（`seekTo` / `getCurrentTime`）・キーボードイベント合成は使わない
+- **理由:**
+  - `<video>` は ISOLATED world からそのまま触れ、YouTube の内部 API に依存しない（GDR-DOM-001 / EXT-001 の方針を踏襲）
+  - スキップ機能を付けると「少し戻して確認してから記録 / スクショ」が主要ユースケースになる。GDR-DOM-001 の再検討条件「巻き戻し視聴中の記録が主要ユースケースになった」に該当するが、`seekable.end` を使えば MAIN world 注入なしで再生位置に追従でき、代替案 A（プレイヤー API）へ切り替える必要がない
+  - **代替案 A: キーボードイベント合成（`J` / `L` / `←` / `→`）** → 刻みが 5 / 10 秒固定で 0.1 秒刻みができない。入力欄フォーカス時の扱いも自前。却下
+  - **代替案 B: プレイヤー API `#movie_player.seekTo()` / `getCurrentTime()`** → MAIN world 注入が必要（GDR-DOM-001 で却下済み）。却下
+  - **代替案 C: 記録は実時刻基準のまま（追従しない）** → 実装は最小だが、30 秒戻して記録すると 30 秒ずれた値が残り、スキップ機能の意味が薄れる。却下
+  - **代替案 D: スクショは `chrome.tabs.captureVisibleTab`** → `activeTab` 権限が要り、コントロールバーやコメント欄も写る。フレームだけ欲しい用途に合わない。却下
+- **影響:**
+  - ライブ端で視聴中も `behindLiveSec` はプレイヤー遅延分（数秒）だけ正になるため、**既存の `offsetSec` はその分だけ再調整が必要**（従来 `-10` にしていた人は `-5` 程度になる想定）。README に明記する
+  - `StreamInfoProvider` に `behindLiveSec(): number | null` を追加。`captureTimestamp` の純関数とテストを拡張
+  - 一時停止中でも `currentTime` 加減算・`drawImage` は有効なので、「一時停止 → 0.1 秒刻み → スクショ」でコマ送りができる
+  - DRM 付き動画（EME）は `drawImage` が失敗する。ライブ配信では通常発生しないため、エラーを UI に返すだけにする
+  - VOD（配信開始時刻なし）でもスキップ / スクショは動かす。スクショのファイル名の経過秒は `video.currentTime` を使う
+- **再検討条件:**
+  - `seekable.end(0)` がライブ端を正しく示さない配信形態が見つかった → `buffered.end` / `.ytp-live-badge` の状態 / プレイヤー API の再検討
+  - 記録の精度（実時刻基準 + 補正）が不足という声が出た → GDR-DOM-001 代替案 A へ
+  - スキップの刻みを変えたい要望 → 設定化（`local:settings.skipSteps`）
+  - スクショと同時にタイムスタンプも残したい要望 → 「📷」で `capture` も呼ぶ設定の追加
+- **日時:** 2026-09-08T00:00:00+09:00
+- **関連:** refines GDR-DOM-001（`behindLiveSec` 補正の追加）; depends-on GDR-EXT-001; relates-to GDR-UI-003
+- **出典:** [notes/20_kaizen/2026-09-08_skip_and_screenshot.md](../../20_kaizen/2026-09-08_skip_and_screenshot.md)

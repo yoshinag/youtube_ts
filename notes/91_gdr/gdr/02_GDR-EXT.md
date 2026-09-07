@@ -37,5 +37,37 @@
   - popup の状態管理が肥大化した → UI フレームワーク導入を GDR-UI で検討
   - Chrome Web Store 公開を行う → `prod` scope / `PUB` PREFIX の追加（GDR-META-001 再検討条件）
 - **日時:** 2026-08-24T00:00:00+09:00
-- **関連:** depends-on GDR-DOM-001; relates-to GDR-META-001
+- **関連:** depends-on GDR-DOM-001; relates-to GDR-META-001; refined-by GDR-EXT-002（`downloads` 権限）
 - **出典:** [notes/20_kaizen/2026-08-24_wxt_structure.md](../../20_kaizen/2026-08-24_wxt_structure.md)
+
+## GDR-EXT-002: スクリーンショットは `downloads` 権限で `Downloads/ss/` に保存する
+
+
+- **status:** Accepted
+- **scope:** arch, pol
+- **決定:**
+  - `permissions` に **`downloads` を追加**する（GDR-EXT-001「`storage` のみ」の例外）。`tabs` / `activeTab` / `scripting` / `host_permissions` は引き続き追加しない
+  - 保存は background の `browser.downloads.download({ url: dataUrl, filename: "ss/{name}.png", conflictAction: "uniquify", saveAs: false })`。Chrome の仕様上、拡張から書けるのは**ダウンロードフォルダ配下のみ**で、絶対パスは指定できない
+  - 保存先は `~/Downloads/ss/` 固定とし、拡張はサブフォルダ名 `ss` だけを知っている。別の場所（例 `/Users/yn_mini_0/_works/ss`）に置きたい場合は利用者側で `ln -s <実体> ~/Downloads/ss` を張れば済む（任意・README に注記のみ。合意 2026-09-08: 当面はリンクを張らず `~/Downloads/ss/` で運用）
+  - 「フォルダを開く」は popup から `browser.downloads.show(downloadId)`（Finder で最新のスクショを選択状態で表示）。`downloadId` はセッション中の最新値、なければ `downloads.search({ filenameRegex: "/ss/[^/]+\\.png$", orderBy: ["-startTime"], limit: 1 })` で探し、それも無ければ `downloads.showDefaultFolder()` にフォールバック
+  - トリガーは popup の「📷」ボタンと `commands` の `capture-screenshot`（既定 `Alt+Shift+S`）。両方とも background の `screenshot(tabId)` に集約する（popup → background へ `{ type: "screenshot" }`）
+- **理由:**
+  - `downloads` は「保存先のサブフォルダ指定」「保存後にフォルダを開く」の両方を満たす唯一の標準 API で、ユーザーの操作なしに保存できる
+  - **代替案 A: File System Access API（`showDirectoryPicker`）** → 任意のフォルダに書けるが、ハンドルの許可はブラウザ再起動のたびに再要求が必要で、popup はピッカーを開いた時点で閉じてしまう。「フォルダを開く」も実現できない。却下
+  - **代替案 B: Native Messaging ホスト** → 任意パスへの書き込みも `open` によるフォルダ表示もできるが、ホストのインストーラと常駐プロセスが必要。個人用途の初期段階では過剰。却下（再検討条件）
+  - **代替案 C: content script の `<a download>`** → 権限は不要だが、保存先はダウンロード直下固定で、フォルダを開く手段がない。却下
+  - **代替案 D: Chrome の既定ダウンロード先を変更** → すべてのダウンロードに影響する。却下
+- **影響:**
+  - 権限追加により `chrome://extensions` で再読み込み時に権限の再確認が出る
+  - data URL（1080p PNG で数 MB）を content script → background に `sendMessage` で渡す。MV3 の service worker では `URL.createObjectURL` が使えないため、blob ではなく data URL で渡す
+  - 保存のたびに Chrome のダウンロード表示（バブル）が出る。抑止には `downloads.ui` 権限 + `setUiOptions` が必要で、今回は見送る
+  - インストール時 / 再読み込み時に「ダウンロードの管理」の権限警告が出る
+  - `src/lib/messages.ts` に `SkipRequest` / `SkipResult` / `FrameRequest` / `FrameResult` / `ScreenshotRequest` / `ScreenshotResult` を追加
+- **再検討条件:**
+  - 保存先をフォルダ単位で切り替えたい要望 → `local:settings.screenshotDir`（サブフォルダ名）の設定化
+  - ダウンロードフォルダ外に置きたい要望が強くなった → 利用者側のシンボリックリンクで足りなければ代替案 B（Native Messaging）を再検討
+  - ダウンロードバブルが煩わしい → `downloads.ui` 権限と `setUiOptions` の追加を GDR-EXT で検討
+  - PNG のサイズ（4K で 10 MB 超）が問題になった → JPEG（品質 0.92）の選択肢を設定に追加
+- **日時:** 2026-09-08T00:00:00+09:00
+- **関連:** refines GDR-EXT-001（権限に `downloads` を追加）; depends-on GDR-DOM-002
+- **出典:** [notes/20_kaizen/2026-09-08_skip_and_screenshot.md](../../20_kaizen/2026-09-08_skip_and_screenshot.md)
