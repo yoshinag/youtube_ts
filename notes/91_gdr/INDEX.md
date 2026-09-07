@@ -16,3 +16,4 @@
 | GDR-UI-004 | popup は配信を親・記録を子のアコーディオン表示（フィルタ廃止） | ui | Implemented | [gdr/04_GDR-UI.md](gdr/04_GDR-UI.md) |
 | GDR-DOM-002 | スキップ / フレーム取得は `<video>` 直接操作、経過秒は `seekable.end − currentTime` で再生位置に追従 | arch, spec | Implemented | [gdr/01_GDR-DOM.md](gdr/01_GDR-DOM.md) |
 | GDR-EXT-002 | スクショは `downloads` 権限で `Downloads/ss/` に保存、`downloads.show` でフォルダを開く | arch, pol | Implemented | [gdr/02_GDR-EXT.md](gdr/02_GDR-EXT.md) |
+| GDR-DOM-003 | 配信中でない動画（アーカイブ / 通常動画）は `currentTime` を経過秒にする（`source: "position"`） | spec, arch | Implemented | [gdr/01_GDR-DOM.md](gdr/01_GDR-DOM.md) |

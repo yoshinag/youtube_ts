@@ -36,4 +36,4 @@ YouTube ライブ配信視聴中のタイムスタンプを記録・一覧・書
 - ストレージ: 上限 5000 件・連打 1.5 秒は重複（GDR-STORE-001）。配信メタは `local:streams` に別持ち、記録にタイトルを複製しない（GDR-STORE-002）。popup はダークテーマのみ（GDR-UI-001）、配信を親・記録を子のアコーディオン（GDR-UI-004）
 - 権限は `storage` と `downloads`（GDR-EXT-002: スクショを `Downloads/ss/` に保存、`downloads.show` でフォルダ表示）のみ。`tabs` / `activeTab` / `scripting` / `host_permissions` は追加しない（追加するなら GDR）
 - `npm run build` → `dist/chrome-mv3/` / `npm test` / `npm run typecheck`
-- タイムスタンプ取得ロジックは `src/lib/timestamp/`（純 TS、`npm test` で vitest）。一次ソースは実時刻 − 配信開始時刻（GDR-DOM-001）から `seekable.end − currentTime`（ライブ端からの遅れ）を引く（GDR-DOM-002）。スキップ / フレーム取得は `<video>` 直接操作で MAIN world 注入なし
+- タイムスタンプ取得ロジックは `src/lib/timestamp/`（純 TS、`npm test` で vitest）。一次ソースは実時刻 − 配信開始時刻（GDR-DOM-001）から `seekable.end − currentTime`（ライブ端からの遅れ）を引く（GDR-DOM-002）。スキップ / フレーム取得は `<video>` 直接操作で MAIN world 注入なし。配信中でない動画（`isLiveNow` が true でない）は `currentTime` を経過秒にする `source: "position"`（GDR-DOM-003）。📷 は同じ瞬間の記録も残す

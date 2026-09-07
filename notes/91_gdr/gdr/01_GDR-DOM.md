@@ -34,7 +34,7 @@
   - 遅延補正を手動で行うのが煩雑という声が出た → `video.buffered` / `getProgressState` 等による自動推定の検討
   - VOD 化後の時間軸と数十秒以上のずれが常態化した → 開始オフセット補正値の導入を検討
 - **日時:** 2026-08-24T00:00:00+09:00
-- **関連:** derived-from §2-1, §2-2; relates-to GDR-META-001; refined-by GDR-DOM-002（`behindLiveSec` 補正）
+- **関連:** derived-from §2-1, §2-2; relates-to GDR-META-001; refined-by GDR-DOM-002（`behindLiveSec` 補正）, GDR-DOM-003（`source: "position"`）
 - **出典:** [notes/20_kaizen/2026-08-24_timestamp_source.md](../../20_kaizen/2026-08-24_timestamp_source.md)
 
 ## GDR-DOM-002: スキップとフレーム取得は `<video>` 要素を直接操作し、経過秒は再生位置に追従させる
@@ -69,4 +69,30 @@
   - スクショと同時にタイムスタンプも残したい要望 → 「📷」で `capture` も呼ぶ設定の追加
 - **日時:** 2026-09-08T00:00:00+09:00
 - **関連:** refines GDR-DOM-001（`behindLiveSec` 補正の追加）; depends-on GDR-EXT-001; relates-to GDR-UI-003
+- **出典:** [notes/20_kaizen/2026-09-08_skip_and_screenshot.md](../../20_kaizen/2026-09-08_skip_and_screenshot.md)
+
+## GDR-DOM-003: 配信中でない動画は再生位置を経過秒にする
+
+
+- **status:** Implemented
+- **scope:** spec, arch
+- **決定:**
+  - `ytInitialPlayerResponse.microformat.playerMicroformatRenderer.liveBroadcastDetails.isLiveNow`（無ければ `videoDetails.isLive`）が `true` かつ配信開始時刻があるときだけ「ライブ」とし、GDR-DOM-001/002 の実時刻方式で記録する
+  - それ以外（アーカイブ = `isLiveNow: false`、通常動画 = `liveBroadcastDetails` なし）は `video.currentTime` をそのまま経過秒にし、`source: "position"`、`offsetSec: 0` で記録する。`streamStartAt` はあれば残し、無ければ `null`（スキーマは v2 のまま。既存データはすべて文字列なので migration 不要）
+  - `InfoResult.hasStreamStart` を `mode: "live" | "vod" | null` に置き換え、popup は `vod` でも「● 記録」を有効にする。「補正」入力は `live` のときだけ有効
+  - スキップ・スクショ・スクショ同時記録は `mode` に関係なく `<video>` があれば動く
+- **理由:**
+  - アーカイブでは「実時刻 − 配信開始」が日単位の値になり無意味だった（2026-09-08 ユーザー要望「ライブだけでなくアーカイブにも」で顕在化）。VOD の時間軸は `watch?v=&t=` と一致する `currentTime` が正
+  - ライブ判定に `isLiveNow` を使うのは、配信開始時刻の有無だけではアーカイブ（開始時刻が残る）を区別できないため
+  - **代替案 A: アーカイブでも `実時刻 − 開始時刻 − behindLive` を使う** → `seekable.end` が動画長になるため数式上は動くが、「今」が配信終了後なので値が破綻する。却下
+  - **代替案 B: VOD は記録対象外のまま** → スキップ / スクショが VOD で動くのに記録だけできないのは不自然。却下
+- **影響:**
+  - `TimestampSource` に `"position"`、`TimestampRecord.streamStartAt` / `StreamMeta.streamStartAt` が `string | null`
+  - `StreamInfoProvider` に `isLiveNow?()` / `currentTime?()`。未実装のプロバイダは従来どおり「開始時刻があればライブ」
+  - `TimestampErrorReason` に `"position unavailable"`
+- **再検討条件:**
+  - `isLiveNow` が取れない配信形態（プレミア公開など）で誤判定が出た → `videoDetails.isLiveContent` / `.ytp-live-badge` の併用
+  - アーカイブのタイムスタンプを「配信開始基準」に換算したい要望 → `endTimestamp` と動画長から先頭トリム量を推定
+- **日時:** 2026-09-08T00:00:00+09:00
+- **関連:** refines GDR-DOM-001（`source: "position"` の追加）; depends-on GDR-DOM-002
 - **出典:** [notes/20_kaizen/2026-09-08_skip_and_screenshot.md](../../20_kaizen/2026-09-08_skip_and_screenshot.md)

@@ -8,6 +8,7 @@
 | GDR ID | 決定の要約 | status |
 |---|---|---|
 | GDR-DOM-002 | スキップとフレーム取得は `<video>` 要素を直接操作する（`currentTime` 加減算 / `canvas.drawImage`）。記録・スクショの経過秒は「実時刻 − 配信開始」から `seekable.end − currentTime`（ライブ端からの遅れ）を引いて再生位置に追従させる | Implemented |
+| GDR-DOM-003 | 配信中でない動画（アーカイブ / 通常動画）は `video.currentTime` を経過秒にする（`source: "position"`、補正なし）。判定は `liveBroadcastDetails.isLiveNow` | Implemented |
 | GDR-EXT-002 | スクリーンショットは `downloads` 権限で `Downloads/ss/` に保存する（絶対パス指定は不可。別の場所に置きたい場合は利用者側でシンボリックリンク）。「フォルダを開く」は `downloads.show` | Implemented |
 
 ---
@@ -45,6 +46,30 @@
   - スクショと同時にタイムスタンプも残したい要望 → 「📷」で `capture` も呼ぶ設定の追加
 - **日時:** 2026-09-08T00:00:00+09:00
 - **関連:** refines GDR-DOM-001（`behindLiveSec` 補正の追加）; depends-on GDR-EXT-001; relates-to GDR-UI-003
+
+**GDR-DOM-003: 配信中でない動画は再生位置を経過秒にする**
+
+- **status:** Implemented
+- **scope:** spec, arch
+- **決定:**
+  - `ytInitialPlayerResponse.microformat.playerMicroformatRenderer.liveBroadcastDetails.isLiveNow`（無ければ `videoDetails.isLive`）が `true` かつ配信開始時刻があるときだけ「ライブ」とし、GDR-DOM-001/002 の実時刻方式で記録する
+  - それ以外（アーカイブ = `isLiveNow: false`、通常動画 = `liveBroadcastDetails` なし）は `video.currentTime` をそのまま経過秒にし、`source: "position"`、`offsetSec: 0` で記録する。`streamStartAt` はあれば残し、無ければ `null`（スキーマは v2 のまま。既存データはすべて文字列なので migration 不要）
+  - `InfoResult.hasStreamStart` を `mode: "live" | "vod" | null` に置き換え、popup は `vod` でも「● 記録」を有効にする。「補正」入力は `live` のときだけ有効
+  - スキップ・スクショ・スクショ同時記録は `mode` に関係なく `<video>` があれば動く
+- **理由:**
+  - アーカイブでは「実時刻 − 配信開始」が日単位の値になり無意味だった（2026-09-08 ユーザー要望「ライブだけでなくアーカイブにも」で顕在化）。VOD の時間軸は `watch?v=&t=` と一致する `currentTime` が正
+  - ライブ判定に `isLiveNow` を使うのは、配信開始時刻の有無だけではアーカイブ（開始時刻が残る）を区別できないため
+  - **代替案 A: アーカイブでも `実時刻 − 開始時刻 − behindLive` を使う** → `seekable.end` が動画長になるため数式上は動くが、「今」が配信終了後なので値が破綻する。却下
+  - **代替案 B: VOD は記録対象外のまま** → スキップ / スクショが VOD で動くのに記録だけできないのは不自然。却下
+- **影響:**
+  - `TimestampSource` に `"position"`、`TimestampRecord.streamStartAt` / `StreamMeta.streamStartAt` が `string | null`
+  - `StreamInfoProvider` に `isLiveNow?()` / `currentTime?()`。未実装のプロバイダは従来どおり「開始時刻があればライブ」
+  - `TimestampErrorReason` に `"position unavailable"`
+- **再検討条件:**
+  - `isLiveNow` が取れない配信形態（プレミア公開など）で誤判定が出た → `videoDetails.isLiveContent` / `.ytp-live-badge` の併用
+  - アーカイブのタイムスタンプを「配信開始基準」に換算したい要望 → `endTimestamp` と動画長から先頭トリム量を推定
+- **日時:** 2026-09-08T00:00:00+09:00
+- **関連:** refines GDR-DOM-001（`source: "position"` の追加）; depends-on GDR-DOM-002
 
 **GDR-EXT-002: スクリーンショットは `downloads` 権限で `Downloads/ss/` に保存する**
 
@@ -163,7 +188,15 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 
 `onCommand("capture-screenshot")` と `runtime.onMessage(ScreenshotRequest)` の両方から呼ぶ。
 
-### 4.6. README
+### 4.6. スクショと同時に記録（2026-09-08 追加）
+
+📷 / `Alt+Shift+S` は、フレーム取得と同じ計算の経過秒でタイムスタンプも残す（note = ファイル名）。設定なしで常時。1.5 秒以内の連打はスクショだけ保存され記録は重複扱い。ダウンロードが失敗しても記録は残る（ファイル名がメモに残るので手で消せる）
+
+### 4.7. アーカイブ対応（GDR-DOM-003, 2026-09-08 追加）
+
+`info` の `mode` が `vod` なら「● 記録」を有効にし、`currentTime` を記録する。補正入力は無効化。スキップ / スクショは元から `hasVideo` 判定なので変更なし
+
+### 4.8. README
 
 - `downloads` 権限を追加した理由と保存先 `~/Downloads/ss/`（別の場所に置きたい場合のシンボリックリンクを注記）
 - `offsetSec` の再調整（ライブ端の遅延が自動で引かれるようになった）
@@ -199,7 +232,9 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 | 1.3 | `wxt.config.ts` に `downloads` 権限と `capture-screenshot` コマンド、background の `screenshot()` | EXT-002 | 1.2 | 完了 |
 | 1.4 | popup: スキップ行、📷 / 📁 ボタン、status 表示 | DOM-002 / EXT-002 | 1.3 | 完了 |
 | 1.5 | typecheck / test / build、README（保存先・offset 再調整）、CLAUDE.md の権限記述を更新 | — | 1.4 | 完了 |
-| 2.1 | 実機検証（`seekable.end − currentTime` がライブ端で安定し 30 秒戻しで +30 になるか、0.1 秒スキップ、一時停止中のスクショ、`~/Downloads/ss/` に保存されるか、フォルダを開く、`Alt+Shift+S`、`offsetSec` の再調整幅） | 両方 | 1.5 | 未着手 |
+| 1.6 | 📷 で同じ瞬間を記録（note = ファイル名） | DOM-002 | 1.4 | 完了 |
+| 1.7 | アーカイブ / 通常動画で再生位置を記録（`isLiveNow` 判定、`mode`、補正はライブのみ） | DOM-003 | 1.6 | 完了 |
+| 2.1 | 実機検証（`seekable.end − currentTime` がライブ端で安定し 30 秒戻しで +30 になるか、0.1 秒スキップ、一時停止中のスクショ、`~/Downloads/ss/` に保存されるか、フォルダを開く、`Alt+Shift+S`、`offsetSec` の再調整幅、アーカイブで `mode: vod` になり再生位置が記録されるか、通常動画で `streamStartAt: null` の記録が一覧・書き出しで崩れないか） | 全部 | 1.7 | 未着手 |
 
 ### 6.2. フェーズ詳細
 
@@ -214,6 +249,8 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 - [x] 1.3 background / manifest — `wxt.config.ts` / `entrypoints/background.ts`
 - [x] 1.4 popup — `entrypoints/popup/index.html` / `main.ts`
 - [x] 1.5 検証と README / CLAUDE.md
+- [x] 1.6 スクショ同時記録 — `entrypoints/youtube.content.ts` / `background.ts` / `popup/main.ts`
+- [x] 1.7 アーカイブ対応 — `src/lib/timestamp/`（`parseIsLiveNow` / position モード）/ `streams.ts` / `messages.ts` / popup
 
 #### フェーズ 2: 実機検証
 
@@ -223,7 +260,7 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
-| 1 | 5 | 5 | 0 | b19a9bc, 84b882c, 0246fdb, （1.5 は完了処理コミット） |
+| 1 | 7 | 7 | 0 | b19a9bc, 84b882c, 0246fdb, 02fe546, 6671f8b, （1.7 は本コミット） |
 | 2 | 1 | 0 | 1 | — |
 
 ---
@@ -236,6 +273,8 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 - **popup の静的 HTML + `data-delta` で 12 ボタンを足した。** view.ts（描画）を触らず main.ts の配線だけで済んだ。ボタンが動的に変わらない限りこれで十分
 - **GDR 文書の上書き事故**（INDEX / GDR-STORE / GDR-UI の過去レコード消失）を起票前に発見し復元した（8b4e9ec）。原因は起票時に追記ではなく Write で全置換したこと。今回は Python で末尾追記にした。次回以降も **GDR ファイルは追記のみ** を徹底する
 - 保存先の要望（`/Users/yn_mini_0/_works/ss`）は Chrome の制約で直接は満たせず、合意で `~/Downloads/ss/` に落ち着いた。「できないこと」を提案段階で明示したので手戻りなし
+
+- **アーカイブ対応は「実時刻方式が VOD では破綻する」という既存の穴を塞いだ形。** GDR-DOM-001 は暗黙にライブ中だけを想定していた。`source` を最初から持たせてあったので `"position"` の追加だけで済み、既存データの migration も不要だった
 
 ### 7.2. 次回への申し送り
 
