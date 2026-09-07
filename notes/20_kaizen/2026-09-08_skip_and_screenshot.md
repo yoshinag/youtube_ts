@@ -226,7 +226,7 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 
 | # | タスク | 根拠 GDR | 依存 | ステータス |
 |---|---|---|---|---|
-| 0 | 事前確認: 実機で `seekable.end(0) − currentTime` を観察（ライブ端で一定 / 30 秒戻しで +30 / 一時停止で毎秒 +1）。合意 2026-09-08 により実装後の実機検証（2.1）に統合。崩れていれば `behindLiveSec()` を `null` 固定にして代替案 C へ | DOM-002 | — | 2.1 に統合 |
+| 0 | 事前確認: 実機で `seekable.end(0) − currentTime` を観察（ライブ端で一定 / 30 秒戻しで +30 / 一時停止で毎秒 +1）。合意 2026-09-08 により実装後の実機検証（2.1）に統合。崩れていれば `behindLiveSec()` を `null` 固定にして代替案 C へ | DOM-002 | — | 完了（2.1 で確認） |
 | 1.1 | `src/lib/player.ts`（`SKIP_STEPS` / `isSkipStep` / `behindLive` / `clampSeek` / `screenshotFilename`）+ テスト。`captureTimestamp` に `behindLiveSec` + テスト | DOM-002 | 0 | 完了 |
 | 1.2 | `messages.ts` 拡張、content script の `skip` / `frame` / provider の `behindLiveSec` / `info.hasVideo` | DOM-002 | 1.1 | 完了 |
 | 1.3 | `wxt.config.ts` に `downloads` 権限と `capture-screenshot` コマンド、background の `screenshot()` | EXT-002 | 1.2 | 完了 |
@@ -234,13 +234,13 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 | 1.5 | typecheck / test / build、README（保存先・offset 再調整）、CLAUDE.md の権限記述を更新 | — | 1.4 | 完了 |
 | 1.6 | 📷 で同じ瞬間を記録（note = ファイル名） | DOM-002 | 1.4 | 完了 |
 | 1.7 | アーカイブ / 通常動画で再生位置を記録（`isLiveNow` 判定、`mode`、補正はライブのみ） | DOM-003 | 1.6 | 完了 |
-| 2.1 | 実機検証（`seekable.end − currentTime` がライブ端で安定し 30 秒戻しで +30 になるか、0.1 秒スキップ、一時停止中のスクショ、`~/Downloads/ss/` に保存されるか、フォルダを開く、`Alt+Shift+S`、`offsetSec` の再調整幅、アーカイブで `mode: vod` になり再生位置が記録されるか、通常動画で `streamStartAt: null` の記録が一覧・書き出しで崩れないか） | 全部 | 1.7 | 未着手 |
+| 2.1 | 実機検証（`seekable.end − currentTime` がライブ端で安定し 30 秒戻しで +30 になるか、0.1 秒スキップ、一時停止中のスクショ、`~/Downloads/ss/` に保存されるか、フォルダを開く、`Alt+Shift+S`、`offsetSec` の再調整幅、アーカイブで `mode: vod` になり再生位置が記録されるか、通常動画で `streamStartAt: null` の記録が一覧・書き出しで崩れないか） | 全部 | 1.7 | 完了 |
 
 ### 6.2. フェーズ詳細
 
 #### フェーズ 0: 事前確認
 
-- [ ] 0 `seekable.end` の観察 → 2.1 に統合（実装後に popup の status 表示で確認）
+- [x] 0 `seekable.end` の観察 → 2.1 で確認済み
 
 #### フェーズ 1: 実装 ✅
 
@@ -252,16 +252,16 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 - [x] 1.6 スクショ同時記録 — `entrypoints/youtube.content.ts` / `background.ts` / `popup/main.ts`
 - [x] 1.7 アーカイブ対応 — `src/lib/timestamp/`（`parseIsLiveNow` / position モード）/ `streams.ts` / `messages.ts` / popup
 
-#### フェーズ 2: 実機検証
+#### フェーズ 2: 実機検証 ✅
 
-- [ ] 2.1 手動検証
+- [x] 2.1 手動検証（2026-09-08、ユーザー報告 OK。`notes/05_knowledge/2026-09-08_実機検証.md`）
 
 ### 6.3. 進捗サマリー
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
 | 1 | 7 | 7 | 0 | b19a9bc, 84b882c, 0246fdb, 02fe546, 6671f8b, （1.7 は本コミット） |
-| 2 | 1 | 0 | 1 | — |
+| 2 | 1 | 1 | 0 | （実機検証 2026-09-08、コード変更なし） |
 
 ---
 
@@ -278,6 +278,6 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 
 ### 7.2. 次回への申し送り
 
-- フェーズ 2（実機検証）が未実施。最初に **`seekable.end − currentTime` がライブ端で安定するか**（popup のスキップ行を押すと status に出る）を見る。数秒単位で跳ねるなら `createDocumentProvider().behindLiveSec` を `() => null` にして代替案 C に戻し、GDR-DOM-002 を Superseded にする
-- `offsetSec` の従来値と新値の差、data URL のサイズと所要時間、📁 のフォールバック頻度を `05_knowledge` に残す（§5-6）
-- 「全削除後も現在の配信の空セクションが残る」は GDR-UI-004 の仕様。消したい場合は UI-004 を refine する小さな GDR-UI-005 候補
+- フェーズ 2（実機検証）は 2026-09-08 に完了（ユーザー報告 OK）。`seekable.end` の追従は採用のまま
+- `offsetSec` の従来値と新値の差、data URL のサイズと所要時間、📁 のフォールバック頻度（§5-6）は数値未記録。気になったときに `05_knowledge` に追記
+- 「全削除後も現在の配信の空セクションが残る」は GDR-UI-005 で撤回・実装済み（`notes/20_kaizen/2026-09-08_empty_current_section.md`）

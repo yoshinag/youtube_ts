@@ -88,7 +88,7 @@
 ## GDR-UI-005: 記録が 0 件の配信はセクションを出さない
 
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** ui
 - **決定:**
   - `groupRecordsByStream` は記録のある配信だけをグループにする。現在の配信に記録が無くても空グループを先頭に挿入しない
