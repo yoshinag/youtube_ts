@@ -20,9 +20,10 @@
 - **scope:** arch, spec
 - **決定:**
   - content script が `document.querySelector("video.html5-main-video") ?? document.querySelector("video")` を対象に、`video.currentTime += deltaSec` でスキップする。`deltaSec` は ±0.1 / 1 / 10 / 30 / 60 / 300 の 12 種。結果は `[0, seekable.end]` にクランプする（ブラウザ側でも同等に丸められる）
-  - フレーム取得は `canvas.drawImage(video)` → `canvas.toBlob("image/png")` → data URL。解像度は `video.videoWidth × videoHeight`（再生中の画質そのまま）
+  - フレーム取得は `canvas.drawImage(video)` → `canvas.toBlob("image/png")` → data URL。解像度は `video.videoWidth × videoHeight`（再生中の画質そのまま）。`readyState < 2`（HAVE_CURRENT_DATA 未満）または `videoWidth === 0` のときは `"frame unavailable"` を返す
   - **再生位置への追従:** `behindLiveSec = video.seekable.end(0) − video.currentTime` を「ライブ端からの遅れ」とみなし、記録・スクショの経過秒を `elapsedSec = (now − streamStartAt) / 1000 − behindLiveSec + offsetSec` とする。`seekable` が空、または値が `[0, 43200]`（DVR 上限 12 時間）を外れるときは `behindLiveSec = 0`（= 現行動作）。`TimestampRecord` に `behindLiveSec?: number` を追加する（省略時 0。任意フィールドなので schema version は据え置き）
   - `source` は `"clock"` のまま（一次ソースは実時刻のまま、補正項が増えただけ）
+  - **前提の事前確認（タスク 0）:** 実装前に DevTools で `seekable.end(0) − currentTime` を数十秒観察し、(a) ライブ端でほぼ一定（揺れ ±1 秒以内）、(b) 30 秒戻すと約 30 増える、(c) 一時停止中に毎秒 1 増える、を確認する。(a) が崩れる（セグメント追加ごとに数秒跳ねる）場合は**追従を採用せず代替案 C（実時刻のみ、現行どおり）に戻す**。閾値を超えたときだけ補正する方式は不連続で説明しにくいため採らない
   - MAIN world 注入・プレイヤー API（`seekTo` / `getCurrentTime`）・キーボードイベント合成は使わない
 - **理由:**
   - `<video>` は ISOLATED world からそのまま触れ、YouTube の内部 API に依存しない（GDR-DOM-001 / EXT-001 の方針を踏襲）
@@ -41,6 +42,7 @@
   - `seekable.end(0)` がライブ端を正しく示さない配信形態が見つかった → `buffered.end` / `.ytp-live-badge` の状態 / プレイヤー API の再検討
   - 記録の精度（実時刻基準 + 補正）が不足という声が出た → GDR-DOM-001 代替案 A へ
   - スキップの刻みを変えたい要望 → 設定化（`local:settings.skipSteps`）
+  - スクショと同時にタイムスタンプも残したい要望 → 「📷」で `capture` も呼ぶ設定の追加
 - **日時:** 2026-09-08T00:00:00+09:00
 - **関連:** refines GDR-DOM-001（`behindLiveSec` 補正の追加）; depends-on GDR-EXT-001; relates-to GDR-UI-003
 
@@ -64,9 +66,12 @@
   - 権限追加により `chrome://extensions` で再読み込み時に権限の再確認が出る
   - data URL（1080p PNG で数 MB）を content script → background に `sendMessage` で渡す。MV3 の service worker では `URL.createObjectURL` が使えないため、blob ではなく data URL で渡す
   - 保存のたびに Chrome のダウンロード表示（バブル）が出る。抑止には `downloads.ui` 権限 + `setUiOptions` が必要で、今回は見送る
+  - インストール時 / 再読み込み時に「ダウンロードの管理」の権限警告が出る
+  - シンボリックリンク経由の保存は未検証（Chrome は `filename` を字句的に検証するだけで実体パスは辿らない想定）。実機検証 2.1 で確認する
   - `src/lib/messages.ts` に `SkipRequest` / `SkipResult` / `FrameRequest` / `FrameResult` / `ScreenshotRequest` / `ScreenshotResult` を追加
 - **再検討条件:**
   - 保存先をフォルダ単位で切り替えたい要望 → `local:settings.screenshotDir`（サブフォルダ名）の設定化
+  - シンボリックリンク経由で保存できなかった → 代替案 D（既定ダウンロード先の変更）で暫定運用し、代替案 B（Native Messaging）を再検討
   - シンボリックリンク運用が不便 / Windows 対応 → 代替案 B（Native Messaging）を再検討
   - ダウンロードバブルが煩わしい → `downloads.ui` 権限と `setUiOptions` の追加を GDR-EXT で検討
   - PNG のサイズ（4K で 10 MB 超）が問題になった → JPEG（品質 0.92）の選択肢を設定に追加
@@ -99,13 +104,14 @@ popup に「再生」ツールバー（12 個のスキップボタン）と「�
 戻す  5m  1m  30s  10s  1s  0.1s │ 0.1s  1s  10s  30s  1m  5m  進む
 ▼ 【現在】○○ 24時間耐久配信  5 件 · 21:30   [コピー][削除]
 ...
-（status）ライブより 32.4 秒前 / ss/20260908-213045_dQw4w9WgXcQ_1h05m02s.png を保存
+（status）ライブより 32.4 秒前 / ss/20260908-213045_dQw4w9WgXcQ_1h05m02.3s.png を保存
 ```
 
 - スキップボタンは `<video>` があるページで有効（ライブでなくても可）。`info` に `hasVideo` を追加して判定する
 - 押すたびに status に「ライブより N 秒前」（`behindLiveSec`、VOD なら「位置 h:mm:ss」）を出し、今どこにいるか分かるようにする
 - 「📷」は保存後に status へファイル名を出す。「📁」は最新のスクショを Finder で表示する
-- ボタンは popup を開いたまま連打できる。ショートカット `Alt+Shift+S` は popup を開かずに保存でき、バッジに 1.5 秒だけ `SS` を出して元に戻す
+- ボタンは popup を開いたまま連打できる。ショートカット `Alt+Shift+S` は popup を開かずに保存でき、バッジに 1.5 秒だけ `SS` を出して元に戻す（`getBadgeText` で元の文字列を保持）
+- 12 個が 1 行に収まらなければ `flex-wrap` で 2 行にする。「戻す」「進む」のラベルを削り `-5m` / `+5m` 表記にしてもよい
 
 ### 4.2. メッセージ（`src/lib/messages.ts`）
 
@@ -131,7 +137,8 @@ SKIP_STEPS = [0.1, 1, 10, 30, 60, 300]
 behindLive(seekableEnd: number | null, currentTime: number): number | null   // 範囲外は null
 clampSeek(target: number, seekableEnd: number | null): number
 screenshotFilename(videoId: string | null, elapsedSec: number, date: Date): string
-   // → "20260908-213045_dQw4w9WgXcQ_1h05m02s.png"（videoId なしなら "novideo"）
+   // → "20260908-213045_dQw4w9WgXcQ_1h05m02.3s.png"（秒は 0.1 秒刻み。videoId なしなら "novideo"）
+isSkipStep(deltaSec: number): boolean   // ±SKIP_STEPS 以外は content script が拒否
 ```
 
 ### 4.4. content script
@@ -139,7 +146,7 @@ screenshotFilename(videoId: string | null, elapsedSec: number, date: Date): stri
 ```ts
 function video(): HTMLVideoElement | null
 function skip(deltaSec): SkipResult        // currentTime = clampSeek(currentTime + delta, seekableEnd)
-async function frame(): Promise<FrameResult>  // canvas.drawImage → toBlob(png) → FileReader.readAsDataURL
+async function frame(): Promise<FrameResult>  // readyState >= 2 && videoWidth > 0 を確認 → canvas.drawImage → toBlob(png) → FileReader.readAsDataURL
 ```
 
 `createDocumentProvider` に `behindLiveSec()` を追加し、`capture()` はそのまま純関数に渡す。
@@ -169,7 +176,7 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 ## 5. 検討課題
 
 1. **`seekable.end(0)` がライブ端を表すか**
-   - YouTube の MSE 実装が `setLiveSeekableRange` 相当を使っていれば正しい。実機検証の最初の項目にする。外れていた場合は `behindLiveSec = null` に落ちて現行動作と同じになる（記録が壊れる方向には倒れない）
+   - YouTube の MSE 実装が `setLiveSeekableRange` 相当を使っていれば正しい。`null` フォールバックは「取れない」場合しか救わず、値が範囲内で間違っている場合は補正が黙って効いて記録がずれる。→ 実装前のタスク 0 で観察して白黒をつける（GDR-DOM-002 決定欄）
 2. **`offsetSec` の意味が変わる**
    - 従来はプレイヤー遅延 + 開始時刻の誤差をまとめて吸収していた。今後は開始時刻の誤差だけになる。既存記録は `behindLiveSec` 無し（= 0）なので遡って変わらない
 3. **data URL のサイズ**
@@ -178,6 +185,8 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
    - `search` 結果の `exists` を見て、無ければ `showDefaultFolder()` に落とす
 5. **ボタン 12 個の幅**
    - popup 最小幅 340px。11px フォントで 1 行に収まる見込み。収まらなければ `flex-wrap` で 2 行にする（実装中に判断）
+6. **完了時に残す知見**
+   - `offsetSec` の従来値 → 新値、data URL のサイズと `sendMessage` の所要時間（1080p / 1440p）、「📁」が `showDefaultFolder()` に落ちた頻度を `05_knowledge` に記録する
 
 ---
 
@@ -187,14 +196,19 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 
 | # | タスク | 根拠 GDR | 依存 | ステータス |
 |---|---|---|---|---|
-| 1.1 | `src/lib/player.ts`（`SKIP_STEPS` / `behindLive` / `clampSeek` / `screenshotFilename`）+ テスト。`captureTimestamp` に `behindLiveSec` + テスト | DOM-002 | — | 未着手 |
+| 0 | 事前確認: 実機で `seekable.end(0) − currentTime` を観察（ライブ端で一定 / 30 秒戻しで +30 / 一時停止で毎秒 +1）。崩れていれば DOM-002 を代替案 C に差し替えて GDR 起票 | DOM-002 | — | 未着手 |
+| 1.1 | `src/lib/player.ts`（`SKIP_STEPS` / `isSkipStep` / `behindLive` / `clampSeek` / `screenshotFilename`）+ テスト。`captureTimestamp` に `behindLiveSec` + テスト | DOM-002 | 0 | 未着手 |
 | 1.2 | `messages.ts` 拡張、content script の `skip` / `frame` / provider の `behindLiveSec` / `info.hasVideo` | DOM-002 | 1.1 | 未着手 |
 | 1.3 | `wxt.config.ts` に `downloads` 権限と `capture-screenshot` コマンド、background の `screenshot()` | EXT-002 | 1.2 | 未着手 |
 | 1.4 | popup: スキップ行、📷 / 📁 ボタン、status 表示 | DOM-002 / EXT-002 | 1.3 | 未着手 |
-| 1.5 | typecheck / test / build、README（シンボリックリンク手順・offset 再調整） | — | 1.4 | 未着手 |
-| 2.1 | 実機検証（`seekable.end` の妥当性、0.1 秒スキップ、一時停止中のスクショ、保存先、フォルダを開く、`Alt+Shift+S`） | 両方 | 1.5 | 未着手 |
+| 1.5 | typecheck / test / build、README（シンボリックリンク手順・offset 再調整）、CLAUDE.md の権限記述を更新 | — | 1.4 | 未着手 |
+| 2.1 | 実機検証（0.1 秒スキップ、一時停止中のスクショ、シンボリックリンク経由で `_works/ss` に実体が置かれるか、フォルダを開く、`Alt+Shift+S`、`offsetSec` の再調整幅） | 両方 | 1.5 | 未着手 |
 
 ### 6.2. フェーズ詳細
+
+#### フェーズ 0: 事前確認
+
+- [ ] 0 `seekable.end` の観察（DevTools、1 分）
 
 #### フェーズ 1: 実装
 
@@ -212,6 +226,7 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
+| 0 | 1 | 0 | 1 | — |
 | 1 | 5 | 0 | 5 | — |
 | 2 | 1 | 0 | 1 | — |
 
