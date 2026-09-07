@@ -5,7 +5,8 @@ export interface StreamMeta {
   videoId: string;
   title: string;
   channel: string | null;
-  streamStartAt: string;
+  /** 配信開始時刻（ISO 8601）。通常動画は null */
+  streamStartAt: string | null;
   firstCapturedAt: number;
   lastCapturedAt: number;
 }
@@ -24,7 +25,7 @@ export function upsertStream(streams: StreamMap, record: TimestampRecord, info: 
     videoId: record.videoId,
     title: info.title ?? prev?.title ?? record.videoId,
     channel: info.channel ?? prev?.channel ?? null,
-    streamStartAt: record.streamStartAt,
+    streamStartAt: record.streamStartAt ?? prev?.streamStartAt ?? null,
     firstCapturedAt: prev ? Math.min(prev.firstCapturedAt, record.capturedAt) : record.capturedAt,
     lastCapturedAt: prev ? Math.max(prev.lastCapturedAt, record.capturedAt) : record.capturedAt,
   };
@@ -86,7 +87,7 @@ export function groupRecordsByStream(
           videoId: current.videoId,
           title: current.title ?? current.videoId,
           channel: current.channel,
-          streamStartAt: current.streamStartAt ?? "",
+          streamStartAt: current.streamStartAt ?? null,
           firstCapturedAt: 0,
           lastCapturedAt: 0,
         },
@@ -111,7 +112,7 @@ function placeholderMeta(videoId: string, rs: readonly TimestampRecord[]): Strea
     videoId,
     title: videoId,
     channel: null,
-    streamStartAt: rs[0]?.streamStartAt ?? "",
+    streamStartAt: rs[0]?.streamStartAt ?? null,
     firstCapturedAt: Math.min(...times),
     lastCapturedAt: Math.max(...times),
   };

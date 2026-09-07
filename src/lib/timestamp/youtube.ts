@@ -44,6 +44,27 @@ export function extractAssignedObject(text: string, name: string): string | null
   return null;
 }
 
+/**
+ * いま配信中か（GDR-DOM-003）。`liveBroadcastDetails.isLiveNow` を優先し、無ければ `videoDetails.isLive`。
+ * どちらも無ければ null（通常動画 / 解析失敗）
+ */
+export function parseIsLiveNow(scriptText: string): boolean | null {
+  const objectText = extractAssignedObject(scriptText, "ytInitialPlayerResponse");
+  if (!objectText) return null;
+  try {
+    const json = JSON.parse(objectText) as {
+      videoDetails?: { isLive?: unknown };
+      microformat?: { playerMicroformatRenderer?: { liveBroadcastDetails?: { isLiveNow?: unknown } } };
+    };
+    const now = json.microformat?.playerMicroformatRenderer?.liveBroadcastDetails?.isLiveNow;
+    if (typeof now === "boolean") return now;
+    const isLive = json.videoDetails?.isLive;
+    return typeof isLive === "boolean" ? isLive : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface VideoDetails {
   videoId: string;
   title: string;
@@ -126,6 +147,11 @@ export function createDocumentProvider(doc: Document = document, loc: Location =
     title: () => trustedDetails()?.title ?? titleFromDocument(doc.title),
     channel: () => trustedDetails()?.author ?? null,
     now: () => Date.now(),
+    isLiveNow: () => {
+      const script = playerScript();
+      return script ? parseIsLiveNow(script) : null;
+    },
+    currentTime: () => findVideo(doc)?.currentTime ?? null,
     behindLiveSec: () => {
       const v = findVideo(doc);
       return v ? behindLive(seekableEnd(v), v.currentTime) : null;

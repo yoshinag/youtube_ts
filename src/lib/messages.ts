@@ -24,8 +24,8 @@ export type InfoResult = {
   videoId: string | null;
   title: string | null;
   channel: string | null;
-  /** 配信開始時刻が取得でき、記録可能なページか */
-  hasStreamStart: boolean;
+  /** 記録の方式。"live" = 実時刻基準（配信中）/ "vod" = 再生位置（アーカイブ・通常動画）/ null = 記録不可（GDR-DOM-003） */
+  mode: "live" | "vod" | null;
   /** `<video>` があり、スキップ / スクショが可能なページか（GDR-DOM-002） */
   hasVideo: boolean;
 };

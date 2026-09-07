@@ -1,4 +1,4 @@
-import { parseStreamStartAt, parseVideoDetails, parseVideoId, titleFromDocument } from "./youtube";
+import { parseIsLiveNow, parseStreamStartAt, parseVideoDetails, parseVideoId, titleFromDocument } from "./youtube";
 
 const START = "2026-08-24T01:00:00+00:00";
 const playerResponse = (extra = "") =>
@@ -33,6 +33,20 @@ describe("parseStreamStartAt", () => {
     expect(parseStreamStartAt("var ytInitialPlayerResponse = {broken;")).toBeNull();
     const bad = JSON.stringify({ microformat: { playerMicroformatRenderer: { liveBroadcastDetails: { startTimestamp: "soon" } } } });
     expect(parseStreamStartAt(`var ytInitialPlayerResponse = ${bad};`)).toBeNull();
+  });
+});
+
+describe("parseIsLiveNow", () => {
+  const wrap = (o: unknown) => `var ytInitialPlayerResponse = ${JSON.stringify(o)};`;
+  it("liveBroadcastDetails.isLiveNow を返す（配信中 / アーカイブ）", () => {
+    expect(parseIsLiveNow(`var ytInitialPlayerResponse = ${playerResponse()};`)).toBe(true);
+    const archived = { microformat: { playerMicroformatRenderer: { liveBroadcastDetails: { isLiveNow: false, startTimestamp: START, endTimestamp: START } } } };
+    expect(parseIsLiveNow(wrap(archived))).toBe(false);
+  });
+  it("無ければ videoDetails.isLive、それも無ければ null（通常動画）", () => {
+    expect(parseIsLiveNow(wrap({ videoDetails: { isLive: true } }))).toBe(true);
+    expect(parseIsLiveNow(wrap({ videoDetails: { videoId: "x" } }))).toBeNull();
+    expect(parseIsLiveNow("var foo = 1;")).toBeNull();
   });
 });
 

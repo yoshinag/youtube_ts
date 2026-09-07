@@ -29,13 +29,15 @@ export default defineContentScript({
 
 function info(): InfoResult {
   const p = createDocumentProvider();
+  const hasVideo = findVideo() != null;
+  const live = p.isLiveNow() === true && p.streamStartAt() != null;
   return {
     type: "info:result",
     videoId: p.videoId(),
     title: p.title(),
     channel: p.channel(),
-    hasStreamStart: p.streamStartAt() != null,
-    hasVideo: findVideo() != null,
+    mode: live ? "live" : hasVideo && p.videoId() ? "vod" : null,
+    hasVideo,
   };
 }
 
@@ -68,7 +70,7 @@ function skip(deltaSec: number): SkipResult {
 
 /**
  * GDR-DOM-002: 現在フレームを PNG の data URL にする。
- * ライブ配信なら同じ瞬間のタイムスタンプも note = ファイル名 で記録する（VOD なら記録なしで currentTime を経過秒にする）
+ * 同じ瞬間のタイムスタンプも note = ファイル名 で記録する（記録できないページではスクショのみ）
  */
 async function frame(): Promise<FrameResult> {
   const v = findVideo();
@@ -96,7 +98,7 @@ async function frame(): Promise<FrameResult> {
       if (duplicate) console.info(`[yt-ts] ${filename} の記録は直前と重複のため無視`);
       else console.info(`[yt-ts] ${formatElapsed(record.elapsedSec)} を記録（${filename}）`);
     } catch {
-      filename = screenshotFilename(p.videoId(), v.currentTime, now); // 配信開始時刻が無い（VOD 等）は記録しない
+      filename = screenshotFilename(p.videoId(), v.currentTime, now); // videoId が取れない等、記録できないページ
     }
     return { type: "frame:result", ok: true, dataUrl, width: canvas.width, height: canvas.height, filename, recorded };
   } catch (e) {

@@ -50,6 +50,32 @@ describe("captureTimestamp", () => {
     expect(captureTimestamp(provider())).not.toHaveProperty("behindLiveSec");
   });
 
+  it("配信中でなければ再生位置を経過秒にする（GDR-DOM-003, source: position。補正は適用しない）", () => {
+    const r = captureTimestamp(provider({ isLiveNow: () => false, currentTime: () => 3902.3 }), -10);
+    expect(r).toEqual({
+      id: "id-1", videoId: "abc123XYZ_-", elapsedSec: 3902.3, capturedAt: startMs + 90_000,
+      streamStartAt: START, offsetSec: 0, source: "position",
+    });
+  });
+
+  it("通常動画（配信開始時刻なし・isLiveNow null）も再生位置で記録し streamStartAt は null", () => {
+    const r = captureTimestamp(provider({ isLiveNow: () => null, streamStartAt: () => null, currentTime: () => 12 }));
+    expect(r.source).toBe("position");
+    expect(r.elapsedSec).toBe(12);
+    expect(r.streamStartAt).toBeNull();
+  });
+
+  it("配信中でなく再生位置も取れなければ position unavailable", () => {
+    expect(() => captureTimestamp(provider({ isLiveNow: () => false, currentTime: () => null }))).toThrow("position unavailable");
+    expect(() => captureTimestamp(provider({ isLiveNow: () => false }))).toThrow("position unavailable");
+  });
+
+  it("isLiveNow が true なら従来どおり実時刻基準（currentTime は使わない）", () => {
+    const r = captureTimestamp(provider({ isLiveNow: () => true, currentTime: () => 5 }));
+    expect(r.source).toBe("clock");
+    expect(r.elapsedSec).toBe(90);
+  });
+
   it("経過秒は 0 未満にならない", () => {
     expect(captureTimestamp(provider(), -120).elapsedSec).toBe(0);
     expect(captureTimestamp(provider({ now: () => startMs - 1000 })).elapsedSec).toBe(0);
@@ -60,9 +86,12 @@ describe("captureTimestamp", () => {
     expect(() => captureTimestamp(provider({ videoId: () => "" }))).toThrow("videoId unavailable");
   });
 
-  it("streamStartAt が無い / 不正な ISO なら TimestampError を投げる（推測値で埋めない）", () => {
-    expect(() => captureTimestamp(provider({ streamStartAt: () => null }))).toThrow("streamStartAt unavailable");
+  it("配信開始時刻が不正な ISO なら TimestampError を投げる（推測値で埋めない）", () => {
     expect(() => captureTimestamp(provider({ streamStartAt: () => "not-a-date" }))).toThrow("streamStartAt unavailable");
+  });
+
+  it("配信開始時刻も再生位置も無ければ TimestampError を投げる", () => {
+    expect(() => captureTimestamp(provider({ streamStartAt: () => null }))).toThrow("position unavailable");
   });
 });
 

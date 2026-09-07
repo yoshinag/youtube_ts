@@ -96,17 +96,19 @@ async function detectActiveTab() {
     const info = (await browser.tabs.sendMessage(activeTabId, req)) as InfoResult | undefined;
     current = info?.videoId ? { videoId: info.videoId, title: info.title, channel: info.channel } : null;
     setVideoControls(info?.hasVideo ?? false);
-    captureBtn.disabled = !info?.hasStreamStart;
-    captureBtn.title = info?.hasStreamStart
-      ? "現在の配信のタイムスタンプを記録"
-      : current
-        ? "この動画は配信開始時刻が取得できません（ライブ配信ではない、または再読み込みが必要）"
-        : "YouTube のライブ配信ページで開いてください";
+    captureBtn.disabled = !info?.mode;
+    captureBtn.title =
+      info?.mode === "live" ? "現在の配信のタイムスタンプを記録（実時刻基準）"
+      : info?.mode === "vod" ? "再生位置を記録（アーカイブ / 動画）"
+      : current ? "この動画はプレイヤーが見つかりません（再読み込みが必要）"
+      : "YouTube の動画ページで開いてください";
+    offsetInput.disabled = info?.mode !== "live";
   } catch {
     current = null;
     setVideoControls(false);
     captureBtn.disabled = true;
-    captureBtn.title = "YouTube のライブ配信ページで開いてください（拡張更新後はページの再読み込みが必要）";
+    offsetInput.disabled = true;
+    captureBtn.title = "YouTube の動画ページで開いてください（拡張更新後はページの再読み込みが必要）";
   }
 }
 
