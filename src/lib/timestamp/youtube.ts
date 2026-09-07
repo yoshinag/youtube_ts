@@ -1,7 +1,9 @@
 /**
  * YouTube ページから配信情報を取り出す純関数群（GDR-DOM-001 §4.4）。
  * DOM アクセスは呼び出し側（content script）が行い、ここには文字列だけを渡す。
+ * 例外は `createDocumentProvider` / `findVideo` で、Document を受け取って薄く包む。
  */
+import { behindLive } from "../player";
 
 /** `var ytInitialPlayerResponse = {...};` を含む script テキストから配信開始時刻（ISO 8601）を抽出する */
 export function parseStreamStartAt(scriptText: string): string | null {
@@ -91,6 +93,17 @@ function isVideoId(s: string): boolean {
   return /^[A-Za-z0-9_-]{11}$/.test(s);
 }
 
+/** YouTube のメインプレイヤーの `<video>`（GDR-DOM-002）。無ければ最初の `<video>` */
+export function findVideo(doc: Document = document): HTMLVideoElement | null {
+  return doc.querySelector<HTMLVideoElement>("video.html5-main-video") ?? doc.querySelector("video");
+}
+
+/** ライブ端（seekable range の末尾）。VOD では動画長、取れなければ null */
+export function seekableEnd(v: HTMLVideoElement): number | null {
+  const n = v.seekable.length;
+  return n > 0 ? v.seekable.end(n - 1) : null;
+}
+
 /** 実際のページから情報を集める StreamInfoProvider 実装。content script から使う */
 export function createDocumentProvider(doc: Document = document, loc: Location = location) {
   const playerScript = () =>
@@ -113,6 +126,10 @@ export function createDocumentProvider(doc: Document = document, loc: Location =
     title: () => trustedDetails()?.title ?? titleFromDocument(doc.title),
     channel: () => trustedDetails()?.author ?? null,
     now: () => Date.now(),
+    behindLiveSec: () => {
+      const v = findVideo(doc);
+      return v ? behindLive(seekableEnd(v), v.currentTime) : null;
+    },
   };
 }
 
