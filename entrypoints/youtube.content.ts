@@ -1,9 +1,9 @@
 import { captureTimestamp, formatElapsed, TimestampError } from "../src/lib/timestamp";
 import { createDocumentProvider, findVideo, seekableEnd } from "../src/lib/timestamp/youtube";
-import { behindLive, clampSeek, isSkipStep } from "../src/lib/player";
+import { behindLive, clampSeek, isSkipStep, screenshotFilename } from "../src/lib/player";
 import {
   isCaptureRequest, isFrameRequest, isInfoRequest, isSkipRequest,
-  type CaptureResult, type FrameResult, type InfoResult, type SkipResult,
+  type CaptureResult, type FrameRecorded, type FrameResult, type InfoResult, type SkipResult,
 } from "../src/lib/messages";
 import { appendRecord, settingsItem } from "../src/ext/storage";
 
@@ -66,7 +66,10 @@ function skip(deltaSec: number): SkipResult {
   return { type: "skip:result", ok: true, currentTime: v.currentTime, behindLiveSec: behindLive(end, v.currentTime) };
 }
 
-/** GDR-DOM-002: 現在フレームを PNG の data URL にする。経過秒は記録と同じ計算（VOD なら currentTime） */
+/**
+ * GDR-DOM-002: 現在フレームを PNG の data URL にする。
+ * ライブ配信なら同じ瞬間のタイムスタンプも note = ファイル名 で記録する（VOD なら記録なしで currentTime を経過秒にする）
+ */
 async function frame(): Promise<FrameResult> {
   const v = findVideo();
   if (!v) return { type: "frame:result", ok: false, error: "video unavailable" };
@@ -80,14 +83,22 @@ async function frame(): Promise<FrameResult> {
     canvas.getContext("2d")!.drawImage(v, 0, 0);
     const dataUrl = canvas.toDataURL("image/png");
     const p = createDocumentProvider();
-    let elapsedSec: number;
+    const { offsetSec } = await settingsItem.getValue();
+    const now = new Date();
+    let filename: string;
+    let recorded: FrameRecorded | null = null;
     try {
-      const { offsetSec } = await settingsItem.getValue();
-      elapsedSec = captureTimestamp(p, offsetSec).elapsedSec;
+      const record = captureTimestamp(p, offsetSec);
+      filename = screenshotFilename(record.videoId, record.elapsedSec, now);
+      record.note = filename;
+      const { records, duplicate, pruned } = await appendRecord(record, { title: p.title(), channel: p.channel() });
+      recorded = { record, count: records.length, duplicate, pruned };
+      if (duplicate) console.info(`[yt-ts] ${filename} の記録は直前と重複のため無視`);
+      else console.info(`[yt-ts] ${formatElapsed(record.elapsedSec)} を記録（${filename}）`);
     } catch {
-      elapsedSec = v.currentTime; // 配信開始時刻が無い（VOD 等）
+      filename = screenshotFilename(p.videoId(), v.currentTime, now); // 配信開始時刻が無い（VOD 等）は記録しない
     }
-    return { type: "frame:result", ok: true, dataUrl, width: canvas.width, height: canvas.height, videoId: p.videoId(), elapsedSec };
+    return { type: "frame:result", ok: true, dataUrl, width: canvas.width, height: canvas.height, filename, recorded };
   } catch (e) {
     console.warn("[yt-ts] フレーム取得に失敗:", e); // DRM 等で canvas が汚染された場合
     return { type: "frame:result", ok: false, error: "frame unavailable" };

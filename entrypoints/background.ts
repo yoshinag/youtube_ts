@@ -2,7 +2,6 @@ import {
   isScreenshotRequest,
   type CaptureRequest, type CaptureResult, type FrameRequest, type FrameResult, type ScreenshotResult,
 } from "../src/lib/messages";
-import { screenshotFilename } from "../src/lib/player";
 
 /** スクショの保存先（ダウンロードフォルダ配下のサブフォルダ。GDR-EXT-002） */
 const SCREENSHOT_DIR = "ss";
@@ -22,6 +21,9 @@ export default defineBackground(() => {
         }
       } else if (command === "capture-screenshot") {
         const res = await screenshot(tabId);
+        if (res.ok && res.recorded && !res.recorded.duplicate) {
+          await browser.action.setBadgeText({ tabId, text: String(res.recorded.count) });
+        }
         await flashBadge(tabId, res.ok ? "SS" : "!");
       }
     } catch {
@@ -38,7 +40,7 @@ export default defineBackground(() => {
   });
 });
 
-/** content script からフレームを受け取り、`Downloads/ss/` に PNG で保存する */
+/** content script からフレーム（と同時に残した記録）を受け取り、`Downloads/ss/` に PNG で保存する */
 async function screenshot(tabId: number): Promise<ScreenshotResult> {
   let f: FrameResult | undefined;
   try {
@@ -48,11 +50,11 @@ async function screenshot(tabId: number): Promise<ScreenshotResult> {
     return { type: "screenshot:result", ok: false, error: "no response" };
   }
   if (!f?.ok) return { type: "screenshot:result", ok: false, error: f?.error ?? "no response" };
-  const filename = `${SCREENSHOT_DIR}/${screenshotFilename(f.videoId, f.elapsedSec, new Date())}`;
+  const filename = `${SCREENSHOT_DIR}/${f.filename}`;
   try {
     const downloadId = await browser.downloads.download({ url: f.dataUrl, filename, conflictAction: "uniquify", saveAs: false });
     console.info(`[yt-ts] ${filename} を保存（${f.width}×${f.height}）`);
-    return { type: "screenshot:result", ok: true, filename, downloadId };
+    return { type: "screenshot:result", ok: true, filename, downloadId, recorded: f.recorded };
   } catch (e) {
     console.warn("[yt-ts] スクショの保存に失敗:", e);
     return { type: "screenshot:result", ok: false, error: e instanceof Error ? e.message : "download failed" };

@@ -156,7 +156,10 @@ shotBtn.addEventListener("click", async () => {
     else if (!res.ok) flash(`保存できません: ${res.error}`);
     else {
       lastDownloadId = res.downloadId;
-      flash(`${res.filename} を保存`);
+      const r = res.recorded;
+      const recorded = !r ? "" : r.duplicate ? "（記録は直前と重複）" : `、${formatElapsed(r.record.elapsedSec)} を記録`;
+      flash(`${res.filename} を保存${recorded}`);
+      if (r && !r.duplicate) await browser.action.setBadgeText({ tabId: activeTabId, text: String(r.count) });
     }
   } finally {
     shotBtn.disabled = false;

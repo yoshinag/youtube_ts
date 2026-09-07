@@ -40,8 +40,20 @@ export type SkipResult =
 
 export type FrameRequest = { type: "frame" };
 
+/** スクショと同時に残した記録（配信開始時刻が無い VOD 等では null） */
+export type FrameRecorded = { record: TimestampRecord; count: number; duplicate: boolean; pruned: number };
+
 export type FrameResult =
-  | { type: "frame:result"; ok: true; dataUrl: string; width: number; height: number; videoId: string | null; elapsedSec: number }
+  | {
+      type: "frame:result";
+      ok: true;
+      dataUrl: string;
+      width: number;
+      height: number;
+      /** `screenshotFilename` で作ったファイル名（ディレクトリなし）。記録の note と一致する */
+      filename: string;
+      recorded: FrameRecorded | null;
+    }
   | { type: "frame:result"; ok: false; error: "video unavailable" | "frame unavailable" };
 
 // ---- GDR-EXT-002: スクリーンショット保存（popup → background）
@@ -49,7 +61,7 @@ export type FrameResult =
 export type ScreenshotRequest = { type: "screenshot"; tabId: number };
 
 export type ScreenshotResult =
-  | { type: "screenshot:result"; ok: true; filename: string; downloadId: number }
+  | { type: "screenshot:result"; ok: true; filename: string; downloadId: number; recorded: FrameRecorded | null }
   | { type: "screenshot:result"; ok: false; error: string };
 
 export type Message =
