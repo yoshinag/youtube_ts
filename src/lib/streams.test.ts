@@ -61,10 +61,16 @@ describe("groupRecordsByStream", () => {
     expect(g[0]).toMatchObject({ current: true, placeholder: false, meta: { title: "今の配信" } });
   });
 
-  it("現在の配信に記録が無ければ空グループを先頭に置く", () => {
+  it("現在の配信に記録が無ければ空グループを作らない（GDR-UI-005）", () => {
     const g = groupRecordsByStream(records, streams, { videoId: "vid00000009", title: "新規", channel: null });
-    expect(g[0]).toMatchObject({ current: true, records: [], meta: { title: "新規" } });
-    expect(g).toHaveLength(3);
+    expect(g).toHaveLength(2);
+    expect(g.every((x) => !x.current)).toBe(true);
+    expect(groupRecordsByStream([], {}, { videoId: "vid00000009", title: "新規", channel: null })).toEqual([]);
+  });
+
+  it("記録があっても現在の配信でなければタイトル補完しない", () => {
+    const g = groupRecordsByStream(records, streams, { videoId: "vid00000009", title: "別", channel: null });
+    expect(g[1]).toMatchObject({ placeholder: true, meta: { title: "vid00000001" } });
   });
 });
 

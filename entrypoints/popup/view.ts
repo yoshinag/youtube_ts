@@ -12,8 +12,6 @@ export interface ViewHandlers {
   setOpen(videoId: string, open: boolean): void;
 }
 
-export const EMPTY_MESSAGE = "まだ記録がありません。「● 記録」または Alt+Shift+T で記録できます。";
-
 export function renderGroups(groups: StreamGroup[], h: ViewHandlers): HTMLDetailsElement[] {
   return groups.map((g) => renderGroup(g, h));
 }
@@ -36,7 +34,7 @@ export function renderGroup(g: StreamGroup, h: ViewHandlers): HTMLDetailsElement
   }
 
   const meta = el("small");
-  meta.textContent = g.records.length ? `${g.records.length} 件 · ${dateLabel(g.meta.lastCapturedAt)}` : "0 件";
+  meta.textContent = `${g.records.length} 件 · ${dateLabel(g.meta.lastCapturedAt)}`;
   summary.append(meta);
 
   const ops = el("span", "ops");
@@ -48,13 +46,7 @@ export function renderGroup(g: StreamGroup, h: ViewHandlers): HTMLDetailsElement
   details.append(summary);
 
   const ul = el("ul");
-  if (g.records.length === 0) {
-    const li = el("li", "empty-row");
-    li.textContent = EMPTY_MESSAGE;
-    ul.append(li);
-  } else {
-    ul.append(...[...g.records].reverse().map((r) => renderRow(r, h)));
-  }
+  ul.append(...[...g.records].reverse().map((r) => renderRow(r, h)));
   details.append(ul);
   return details;
 }

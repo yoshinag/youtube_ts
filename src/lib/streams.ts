@@ -49,12 +49,12 @@ export interface StreamGroup {
 
 /**
  * 配信ごとにグループ化。並びは lastCapturedAt 降順、現在の配信は先頭固定。
- * メタの無い配信は videoId をタイトルにした仮メタで補う。現在の配信に記録が無ければ空グループを先頭に置く。
+ * メタの無い配信は videoId をタイトルにした仮メタで補う。記録の無い配信（現在の配信を含む）はグループにしない（GDR-UI-005）。
  */
 export function groupRecordsByStream(
   records: readonly TimestampRecord[],
   streams: StreamMap,
-  current: { videoId: string; title: string | null; channel: string | null; streamStartAt?: string | null } | null,
+  current: { videoId: string; title: string | null; channel: string | null } | null,
 ): StreamGroup[] {
   const byVideo = new Map<string, TimestampRecord[]>();
   for (const r of records) {
@@ -76,28 +76,15 @@ export function groupRecordsByStream(
   }
   groups.sort((a, b) => b.meta.lastCapturedAt - a.meta.lastCapturedAt);
 
+  // GDR-UI-005: 記録の無い現在の配信は空グループを作らない（先頭固定とタイトル補完だけ）
   if (current) {
     const idx = groups.findIndex((g) => g.current);
     if (idx > 0) {
       const [g] = groups.splice(idx, 1);
       groups.unshift(g!);
-    } else if (idx < 0) {
-      groups.unshift({
-        meta: {
-          videoId: current.videoId,
-          title: current.title ?? current.videoId,
-          channel: current.channel,
-          streamStartAt: current.streamStartAt ?? null,
-          firstCapturedAt: 0,
-          lastCapturedAt: 0,
-        },
-        records: [],
-        placeholder: current.title == null,
-        current: true,
-      });
     }
-    const head = groups[0]!;
-    if (head.placeholder && current.title) {
+    const head = groups[0];
+    if (head?.current && head.placeholder && current.title) {
       // 旧記録のみの配信を今開いている → info のタイトルで表示だけ補う
       head.meta = { ...head.meta, title: current.title, channel: current.channel };
       head.placeholder = false;
