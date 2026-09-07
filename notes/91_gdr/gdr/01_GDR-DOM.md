@@ -40,7 +40,7 @@
 ## GDR-DOM-002: スキップとフレーム取得は `<video>` 要素を直接操作し、経過秒は再生位置に追従させる
 
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** arch, spec
 - **決定:**
   - content script が `document.querySelector("video.html5-main-video") ?? document.querySelector("video")` を対象に、`video.currentTime += deltaSec` でスキップする。`deltaSec` は ±0.1 / 1 / 10 / 30 / 60 / 300 の 12 種。結果は `[0, seekable.end]` にクランプする（ブラウザ側でも同等に丸められる）

@@ -7,8 +7,8 @@
 
 | GDR ID | 決定の要約 | status |
 |---|---|---|
-| GDR-DOM-002 | スキップとフレーム取得は `<video>` 要素を直接操作する（`currentTime` 加減算 / `canvas.drawImage`）。記録・スクショの経過秒は「実時刻 − 配信開始」から `seekable.end − currentTime`（ライブ端からの遅れ）を引いて再生位置に追従させる | Accepted |
-| GDR-EXT-002 | スクリーンショットは `downloads` 権限で `Downloads/ss/` に保存する（絶対パス指定は不可。別の場所に置きたい場合は利用者側でシンボリックリンク）。「フォルダを開く」は `downloads.show` | Accepted |
+| GDR-DOM-002 | スキップとフレーム取得は `<video>` 要素を直接操作する（`currentTime` 加減算 / `canvas.drawImage`）。記録・スクショの経過秒は「実時刻 − 配信開始」から `seekable.end − currentTime`（ライブ端からの遅れ）を引いて再生位置に追従させる | Implemented |
+| GDR-EXT-002 | スクリーンショットは `downloads` 権限で `Downloads/ss/` に保存する（絶対パス指定は不可。別の場所に置きたい場合は利用者側でシンボリックリンク）。「フォルダを開く」は `downloads.show` | Implemented |
 
 ---
 
@@ -16,7 +16,7 @@
 
 **GDR-DOM-002: スキップとフレーム取得は `<video>` 要素を直接操作し、経過秒は再生位置に追従させる**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** arch, spec
 - **決定:**
   - content script が `document.querySelector("video.html5-main-video") ?? document.querySelector("video")` を対象に、`video.currentTime += deltaSec` でスキップする。`deltaSec` は ±0.1 / 1 / 10 / 30 / 60 / 300 の 12 種。結果は `[0, seekable.end]` にクランプする（ブラウザ側でも同等に丸められる）
@@ -48,7 +48,7 @@
 
 **GDR-EXT-002: スクリーンショットは `downloads` 権限で `Downloads/ss/` に保存する**
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** arch, pol
 - **決定:**
   - `permissions` に **`downloads` を追加**する（GDR-EXT-001「`storage` のみ」の例外）。`tabs` / `activeTab` / `scripting` / `host_permissions` は引き続き追加しない
@@ -194,11 +194,11 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 | # | タスク | 根拠 GDR | 依存 | ステータス |
 |---|---|---|---|---|
 | 0 | 事前確認: 実機で `seekable.end(0) − currentTime` を観察（ライブ端で一定 / 30 秒戻しで +30 / 一時停止で毎秒 +1）。合意 2026-09-08 により実装後の実機検証（2.1）に統合。崩れていれば `behindLiveSec()` を `null` 固定にして代替案 C へ | DOM-002 | — | 2.1 に統合 |
-| 1.1 | `src/lib/player.ts`（`SKIP_STEPS` / `isSkipStep` / `behindLive` / `clampSeek` / `screenshotFilename`）+ テスト。`captureTimestamp` に `behindLiveSec` + テスト | DOM-002 | 0 | 未着手 |
-| 1.2 | `messages.ts` 拡張、content script の `skip` / `frame` / provider の `behindLiveSec` / `info.hasVideo` | DOM-002 | 1.1 | 未着手 |
-| 1.3 | `wxt.config.ts` に `downloads` 権限と `capture-screenshot` コマンド、background の `screenshot()` | EXT-002 | 1.2 | 未着手 |
-| 1.4 | popup: スキップ行、📷 / 📁 ボタン、status 表示 | DOM-002 / EXT-002 | 1.3 | 未着手 |
-| 1.5 | typecheck / test / build、README（保存先・offset 再調整）、CLAUDE.md の権限記述を更新 | — | 1.4 | 未着手 |
+| 1.1 | `src/lib/player.ts`（`SKIP_STEPS` / `isSkipStep` / `behindLive` / `clampSeek` / `screenshotFilename`）+ テスト。`captureTimestamp` に `behindLiveSec` + テスト | DOM-002 | 0 | 完了 |
+| 1.2 | `messages.ts` 拡張、content script の `skip` / `frame` / provider の `behindLiveSec` / `info.hasVideo` | DOM-002 | 1.1 | 完了 |
+| 1.3 | `wxt.config.ts` に `downloads` 権限と `capture-screenshot` コマンド、background の `screenshot()` | EXT-002 | 1.2 | 完了 |
+| 1.4 | popup: スキップ行、📷 / 📁 ボタン、status 表示 | DOM-002 / EXT-002 | 1.3 | 完了 |
+| 1.5 | typecheck / test / build、README（保存先・offset 再調整）、CLAUDE.md の権限記述を更新 | — | 1.4 | 完了 |
 | 2.1 | 実機検証（`seekable.end − currentTime` がライブ端で安定し 30 秒戻しで +30 になるか、0.1 秒スキップ、一時停止中のスクショ、`~/Downloads/ss/` に保存されるか、フォルダを開く、`Alt+Shift+S`、`offsetSec` の再調整幅） | 両方 | 1.5 | 未着手 |
 
 ### 6.2. フェーズ詳細
@@ -207,13 +207,13 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 
 - [ ] 0 `seekable.end` の観察 → 2.1 に統合（実装後に popup の status 表示で確認）
 
-#### フェーズ 1: 実装
+#### フェーズ 1: 実装 ✅
 
-- [ ] 1.1 純関数
-- [ ] 1.2 content script
-- [ ] 1.3 background / manifest
-- [ ] 1.4 popup
-- [ ] 1.5 検証と README
+- [x] 1.1 純関数 — `src/lib/player.ts` / `player.test.ts` / `timestamp/index.ts`
+- [x] 1.2 content script — `src/lib/messages.ts` / `timestamp/youtube.ts` / `entrypoints/youtube.content.ts`
+- [x] 1.3 background / manifest — `wxt.config.ts` / `entrypoints/background.ts`
+- [x] 1.4 popup — `entrypoints/popup/index.html` / `main.ts`
+- [x] 1.5 検証と README / CLAUDE.md
 
 #### フェーズ 2: 実機検証
 
@@ -223,11 +223,22 @@ async function screenshot(tabId): Promise<ScreenshotResult> {
 
 | フェーズ | タスク数 | 完了 | 残 | コミット |
 |---|---|---|---|---|
-| 1 | 5 | 0 | 5 | — |
+| 1 | 5 | 5 | 0 | b19a9bc, 84b882c, 0246fdb, （1.5 は完了処理コミット） |
 | 2 | 1 | 0 | 1 | — |
 
 ---
 
 ## 7. ふりかえり
 
-（実装後に記入）
+### 7.1. 観察された傾向
+
+- **GDR-DOM-001 の再検討条件が実際に発火した例。** 「巻き戻し視聴中の記録が主要ユースケースになった」に対し、代替案 A（プレイヤー API）へ行かず `seekable.end` で済ませた。MAIN world 注入なしの制約を保ったまま拡張できたが、前提（`seekable.end` = ライブ端）は実機でしか確かめられない。フォールバックを「取れなければ現行動作」に倒しておいたので、外れても壊れる方向にはならない
+- **popup の静的 HTML + `data-delta` で 12 ボタンを足した。** view.ts（描画）を触らず main.ts の配線だけで済んだ。ボタンが動的に変わらない限りこれで十分
+- **GDR 文書の上書き事故**（INDEX / GDR-STORE / GDR-UI の過去レコード消失）を起票前に発見し復元した（8b4e9ec）。原因は起票時に追記ではなく Write で全置換したこと。今回は Python で末尾追記にした。次回以降も **GDR ファイルは追記のみ** を徹底する
+- 保存先の要望（`/Users/yn_mini_0/_works/ss`）は Chrome の制約で直接は満たせず、合意で `~/Downloads/ss/` に落ち着いた。「できないこと」を提案段階で明示したので手戻りなし
+
+### 7.2. 次回への申し送り
+
+- フェーズ 2（実機検証）が未実施。最初に **`seekable.end − currentTime` がライブ端で安定するか**（popup のスキップ行を押すと status に出る）を見る。数秒単位で跳ねるなら `createDocumentProvider().behindLiveSec` を `() => null` にして代替案 C に戻し、GDR-DOM-002 を Superseded にする
+- `offsetSec` の従来値と新値の差、data URL のサイズと所要時間、📁 のフォールバック頻度を `05_knowledge` に残す（§5-6）
+- 「全削除後も現在の配信の空セクションが残る」は GDR-UI-004 の仕様。消したい場合は UI-004 を refine する小さな GDR-UI-005 候補

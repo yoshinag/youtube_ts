@@ -14,5 +14,5 @@
 | GDR-UI-003 | GUI 記録は popup の「記録」ボタン（ページ内注入なし・権限追加なし） | ui, arch | Implemented | [gdr/04_GDR-UI.md](gdr/04_GDR-UI.md) |
 | GDR-STORE-002 | 配信メタを `local:streams` に別持ち、記録は videoId で紐づけ | data, spec | Implemented | [gdr/03_GDR-STORE.md](gdr/03_GDR-STORE.md) |
 | GDR-UI-004 | popup は配信を親・記録を子のアコーディオン表示（フィルタ廃止） | ui | Implemented | [gdr/04_GDR-UI.md](gdr/04_GDR-UI.md) |
-| GDR-DOM-002 | スキップ / フレーム取得は `<video>` 直接操作、経過秒は `seekable.end − currentTime` で再生位置に追従 | arch, spec | Accepted | [gdr/01_GDR-DOM.md](gdr/01_GDR-DOM.md) |
-| GDR-EXT-002 | スクショは `downloads` 権限で `Downloads/ss/` に保存、`downloads.show` でフォルダを開く | arch, pol | Accepted | [gdr/02_GDR-EXT.md](gdr/02_GDR-EXT.md) |
+| GDR-DOM-002 | スキップ / フレーム取得は `<video>` 直接操作、経過秒は `seekable.end − currentTime` で再生位置に追従 | arch, spec | Implemented | [gdr/01_GDR-DOM.md](gdr/01_GDR-DOM.md) |
+| GDR-EXT-002 | スクショは `downloads` 権限で `Downloads/ss/` に保存、`downloads.show` でフォルダを開く | arch, pol | Implemented | [gdr/02_GDR-EXT.md](gdr/02_GDR-EXT.md) |

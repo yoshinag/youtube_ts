@@ -43,7 +43,7 @@
 ## GDR-EXT-002: スクリーンショットは `downloads` 権限で `Downloads/ss/` に保存する
 
 
-- **status:** Accepted
+- **status:** Implemented
 - **scope:** arch, pol
 - **決定:**
   - `permissions` に **`downloads` を追加**する（GDR-EXT-001「`storage` のみ」の例外）。`tabs` / `activeTab` / `scripting` / `host_permissions` は引き続き追加しない
