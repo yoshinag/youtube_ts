@@ -208,3 +208,4 @@ popup 起動    → storage.listRecords(videoId of active tab?) ※ 当面は全
 - ストレージのスキーマ（上限・重複・append 競合・エクスポート形式）は GDR-STORE-001 で確定する
 - popup のタブ別フィルタ・トースト・設定 UI（`offsetSec`）は GDR-UI 候補
 - アイコン未設定（WXT 既定）。公開前に `public/icon/` を用意
+- （2026-09-08 追記）「権限は `storage` のみ」は GDR-EXT-002 で `downloads` を追加して refine（スクショ保存 / フォルダ表示）。`tabs` / `activeTab` / `scripting` / `host_permissions` は引き続きなし

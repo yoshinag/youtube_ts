@@ -182,3 +182,4 @@ export function captureTimestamp(p: StreamInfoProvider, offsetSec = 0): Timestam
 - GDR-EXT-001（WXT 構成）が未起票。本 GDR の 2.1 はそれに依存する。MAIN world 注入は不要になった
 - SPA 遷移後の `streamStartAt` 再取得は GDR-DOM-002 候補
 - `offsetSec` の設定 UI / 保存は GDR-UI / GDR-STORE 候補
+- （2026-09-08 追記）再検討条件「巻き戻し視聴中の記録が主要ユースケースになった」が発火。プレイヤー API へは行かず `seekable.end − currentTime` で追従する GDR-DOM-002、配信中でない動画は `currentTime` を使う GDR-DOM-003 で refine した（`notes/20_kaizen/2026-09-08_skip_and_screenshot.md`）。SPA 遷移後の再取得は未対応のまま（GDR-DOM-004 候補に繰り下げ）
