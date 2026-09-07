@@ -1,6 +1,7 @@
 /**
  * ライブ配信タイムスタンプの取得ロジック（GDR-DOM-001）。
- * 一次ソースは「実時刻 − 配信開始時刻」。YouTube 非依存の純関数として実装する。
+ * 一次ソースは「実時刻 − 配信開始時刻」。GDR-DOM-002 でライブ端からの遅れ（behindLiveSec）を引き、再生位置に追従させる。
+ * YouTube 非依存の純関数として実装する。
  */
 
 export type TimestampSource = "clock";
@@ -19,6 +20,8 @@ export interface TimestampRecord {
   offsetSec: number;
   source: TimestampSource;
   note?: string;
+  /** 記録時のライブ端からの遅れ（秒）。取得できたときだけ持つ（GDR-DOM-002）。省略時は 0 扱い */
+  behindLiveSec?: number;
 }
 
 /** YouTube 依存の情報を供給するインターフェース。content script 側で実装する */
@@ -26,6 +29,8 @@ export interface StreamInfoProvider {
   videoId(): string | null;
   streamStartAt(): string | null;
   now(): number;
+  /** ライブ端からの遅れ（秒）。巻き戻し / 一時停止中の再生位置に記録を追従させる（GDR-DOM-002）。不明なら null */
+  behindLiveSec?(): number | null;
   /** レコード ID の生成。既定は crypto.randomUUID() */
   newId?(): string;
 }
@@ -50,9 +55,12 @@ export function captureTimestamp(p: StreamInfoProvider, offsetSec = 0): Timestam
   }
 
   const capturedAt = p.now();
-  const elapsedSec = Math.max(0, (capturedAt - startMs) / 1000 + offsetSec);
+  const behind = p.behindLiveSec?.() ?? null;
+  const elapsedSec = Math.max(0, (capturedAt - startMs) / 1000 - (behind ?? 0) + offsetSec);
   const id = p.newId ? p.newId() : crypto.randomUUID();
-  return { id, videoId, elapsedSec, capturedAt, streamStartAt, offsetSec, source: "clock" };
+  const record: TimestampRecord = { id, videoId, elapsedSec, capturedAt, streamStartAt, offsetSec, source: "clock" };
+  if (behind != null) record.behindLiveSec = behind;
+  return record;
 }
 
 /** 経過秒を YouTube のコメント / チャプターで使える `h:mm:ss` 形式にする */

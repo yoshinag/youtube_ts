@@ -38,6 +38,18 @@ describe("captureTimestamp", () => {
     expect(captureTimestamp(provider(), 5).offsetSec).toBe(5);
   });
 
+  it("behindLiveSec（ライブ端からの遅れ）を引き、レコードにも残す（GDR-DOM-002）", () => {
+    const r = captureTimestamp(provider({ behindLiveSec: () => 30 }), -5);
+    expect(r.elapsedSec).toBe(55);
+    expect(r.behindLiveSec).toBe(30);
+  });
+
+  it("behindLiveSec が null / 未定義なら 0 扱いでフィールドも持たない", () => {
+    expect(captureTimestamp(provider({ behindLiveSec: () => null })).elapsedSec).toBe(90);
+    expect(captureTimestamp(provider({ behindLiveSec: () => null }))).not.toHaveProperty("behindLiveSec");
+    expect(captureTimestamp(provider())).not.toHaveProperty("behindLiveSec");
+  });
+
   it("経過秒は 0 未満にならない", () => {
     expect(captureTimestamp(provider(), -120).elapsedSec).toBe(0);
     expect(captureTimestamp(provider({ now: () => startMs - 1000 })).elapsedSec).toBe(0);
